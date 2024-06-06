@@ -7,7 +7,7 @@ File Name: lab4.py
 
 Title: Lab 4 - Line Follower
 
-Author: [PLACEHOLDER] << [Write your name or team name here]
+Author: Akul Goyal
 
 Purpose: Write a script to enable fully autonomous behavior from the RACECAR. The
 RACECAR should automatically identify the color of a line it sees, then drive on the
@@ -48,6 +48,7 @@ import racecar_utils as rc_utils
 ########################################################################################
 
 rc = racecar_core.create_racecar()
+kP = -1
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour
@@ -56,10 +57,9 @@ MIN_CONTOUR_AREA = 30
 # A crop window for the floor directly in front of the car
 CROP_FLOOR = ((360, 0), (rc.camera.get_height(), rc.camera.get_width()))
 
-# TODO Part 1: Determine the HSV color threshold pairs for BLUE, GREEN, and RED
-BLUE = _____ # The HSV range for the color blue
-GREEN = _____  # The HSV range for the color green
-RED = _____  # The HSV range for the color red
+BLUE = ((80, 150, 50), (125, 255, 255)) # The HSV range for the color blue
+GREEN = ((30, 50, 50), (80, 255, 255))  # The HSV range for the color green
+RED = ((165, 50, 50), (10, 255, 255))  # The HSV range for the color red
 
 # Color priority: Red >> Green >> Blue
 COLOR_PRIORITY = (RED, GREEN, BLUE)
@@ -82,9 +82,29 @@ def update_contour():
 
     image = rc.camera.get_color_image()
 
-    # TODO Part 2: Complete this function by cropping the image to the bottom of the screen,
-    # analyzing for contours of interest, and returning the center of the contour and the
-    # area of the contour for the color of line we should follow (Hint: Lab 3)
+    if image is None:
+        contour_area = 0;
+        contour_center = None;
+    else:
+        image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
+        
+        contours = rc_utils.find_contours(image, COLOR_PRIORITY[0][0], COLOR_PRIORITY[0][1])
+        c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+        if c is None:
+            contours = rc_utils.find_contours(image, COLOR_PRIORITY[1][0], COLOR_PRIORITY[1][1])
+            c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+
+            if c is None:
+                contours = rc_utils.find_contours(image, COLOR_PRIORITY[2][0], COLOR_PRIORITY[2][1])
+                c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+
+        if c is not None:
+            contour_area = rc_utils.get_contour_area(c)
+            contour_center = rc_utils.get_contour_center(c)
+            rc_utils.draw_contour(image, c)
+            rc_utils.draw_circle(image, contour_center)
+        
+        rc.display.show_color_image(image)
 
 # [FUNCTION] The start function is run once every time the start button is pressed
 def start():
@@ -120,6 +140,7 @@ def update():
     """
     global speed
     global angle
+    global kP
 
     # Search for contours in the current color image
     update_contour()
@@ -131,11 +152,13 @@ def update():
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
     if contour_center is not None:
-        angle = _____
-
-    # TODO Part 4: Determine the speed that the RACECAR should drive at. This may be static or
-    # variable depending on the programmer's intent.
-    speed = _____
+        setpoint = rc.camera.get_width() // 2
+        error = rc_utils.remap_range(setpoint - contour_center[1], -setpoint, setpoint, -1, 1);
+        angle = kP * error
+        speed = max(1 - abs(error), 0.1)
+    else:
+        angle = 0;
+        speed = 0;
         
     # Set the speed and angle of the RACECAR after calculations have been complete
     rc.drive.set_speed_angle(speed, angle)
