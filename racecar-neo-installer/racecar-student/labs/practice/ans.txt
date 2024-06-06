@@ -1,0 +1,6 @@
+             Connect directly to a local SFTP server program rather than a
+             the client and server.
+             necessary for servers that do not implement SFTP, for backwards-
+             expanding paths with a ‘~’ prefix for older SFTP servers.
+             at the expense of fully trusting that the server will not send
+     sftp-server(8), sshd(8)
