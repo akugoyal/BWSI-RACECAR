@@ -60,21 +60,25 @@ yellow_params = None
 
 PURPLE_DATA = [(56.41253, 23810.5), (56.41253, 26949.5), (50.14364, 28060.0), (50.14364, 28372.0), (43.4857, 28413.0), (43.4857, 28905.0), (43.4857, 30518.0), (35.23148, 32656.0), (35.23148, 35724.5), (28.210056, 39571.0), (28.210056, 45766.5), (21.879967, 55658.0)]
 purple_params = None
-# x = np.linspace(3500, 55000, 1000)
-# dists = list(zip(*PURPLE_DATA))[0]
-# areas = list(zip(*PURPLE_DATA))[1]
-# params, covar = curve_fit(inverse, areas, dists)
-# # y = params[0] * np.arctan(params[1] * x + params[2]) + params[3]
-# y = params[0] / x + params[1]
-# plt.plot(x, y)
-# print(f"Params: {params} Covariance: {covar}")
-# plt.scatter(areas, dists)
-# plt.show()
+
+BLACK_DATA = [(117.08385, 2799.5), (114.23585, 2938.0), (114.23585, 2966.0), (106.67781, 3008.5), (106.67781, 3055.0), (104.67302, 3412.0), (104.67302, 3500.0), (100.96707, 3590.0), (100.96707, 3711.5), (100.96707, 3829.5), (97.7365, 3976.5), (97.7365, 4128.5), (94.14725, 4293.5), (94.14725, 4495.0), (88.301476, 4718.0), (88.301476, 4958.0), (84.95589, 5255.0), (84.95589, 5580.5), (84.95589, 5951.5), (79.08421, 6401.0), (79.08421, 6928.5), (72.34155, 7548.5), (72.34155, 8228.5), (67.820755, 9021.0), (67.820755, 10079.5), (67.820755, 11557.0), (60.660454, 13412.0), (60.660454, 15556.5)]
+black_params = None
+
+x = np.linspace(3500, 55000, 1000)
+dists = list(zip(*BLACK_DATA))[0]
+areas = list(zip(*BLACK_DATA))[1]
+params, covar = curve_fit(inverse, areas, dists)
+# y = params[0] * np.arctan(params[1] * x + params[2]) + params[3]
+y = params[0] / x + params[1]
+plt.plot(x, y)
+print(f"Params: {params} Covariance: {covar}")
+plt.scatter(areas, dists)
+plt.show()
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour
 MIN_LINE_CONTOUR_AREA = 75
-MIN_CONE_CONTOUR_AREA = 500
+MIN_CONE_CONTOUR_AREA = 1500
 HEIGHT = rc.camera.get_height()
 WIDTH = rc.camera.get_width()
 kP = -1
@@ -95,12 +99,13 @@ RED = ((165, 50, 50), (10, 255, 255))  # The HSV range for the color red
 WHITE = ((0, 60, 150), (179, 70, 255)); # The HSV range for the color white
 YELLOW = ((20, 0, 50), (40, 255, 255)); # The HSV range for the color yellow
 PURPLE = ((125, 50, 50), (165, 255, 255)); # The HSV range for the color purple
+BLACK = ((0, 50, 0), (179, 255, 56))
 
 # Color priority: Red >> Green >> Blue
-COLOR_PRIORITY = (BLUE, RED, GREEN)
+COLOR_PRIORITY = (GREEN, RED, BLUE)
 
 # Color of the cone
-CONE_COLOR = PURPLE
+CONE_COLOR = BLACK
 
 # >> Variables
 speed = 0.0  # The current speed of the car
@@ -174,13 +179,13 @@ def update_contour():
             # print(cone_area)
             # print(hsv[center[0]][center[1]])
 
-        # row = 390
-        # col = 253
+        # row = 410
+        # col = 130
         # hsvimg = np.zeros((300, 300, 3), np.uint8)
         # hsvimg[:] = hsv[row][col]
         # BGRimg = cv.cvtColor(hsvimg, cv.COLOR_HSV2BGR)
         # # rc_utils.draw_circle(image, (x, y))
-        # cv.circle(image, (col, row), 1, (0, 0, 0), 1)
+        # cv.circle(image, (col, row), 1, (30, 255, 255), 1)
         # cv.namedWindow("Color", cv.WINDOW_NORMAL)
         # cv.imshow("Color", BGRimg)
         # print(hsv[row][col])
@@ -193,6 +198,7 @@ def start():
     global angle
     global yellow_params
     global purple_params
+    global black_params
 
     warnings.filterwarnings("ignore")
     # Initialize variables
@@ -214,6 +220,10 @@ def start():
     dists = list(zip(*PURPLE_DATA))[0]
     areas = list(zip(*PURPLE_DATA))[1]
     purple_params, covar = curve_fit(inverse, areas, dists)
+    # Black
+    dists = list(zip(*BLACK_DATA))[0]
+    areas = list(zip(*BLACK_DATA))[1]
+    black_params, covar = curve_fit(inverse, areas, dists)
 
     # Print start message
     print(
@@ -245,22 +255,24 @@ def update():
 
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
-    dist = inverse(cone_area, purple_params[0], purple_params[1])
-    # if cone_area > CONE_STOP_AREA:
-    if dist < 50:
-        speed = 0
+    if cone_center is not None:
+        dist = inverse(cone_area, black_params[0], black_params[1])
+        # if cone_area > CONE_STOP_AREA:
+        print(dist)
+        if dist < 60:
+            speed = 0
     if contour_center is not None:
         setpoint = WIDTH // 2
         error = rc_utils.remap_range(setpoint - contour_center[1], -setpoint, setpoint, -1, 1);
         angle = kP * error
         speed = max(MAX_SPEED - abs(error), 0.1)
     elif cone_center is None:
-        speed = 0;
+        speed = 0.1;
         
-    if seeingCone:
-        a = rc.lidar.get_samples()
-        # PURPLE_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
-        print(str(np.min(a[np.nonzero(a)])) + " " + str(cone_area))
+    # if seeingCone:
+        # a = rc.lidar.get_samples()
+        # BLACK_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
+        # print(str(np.min(a[np.nonzero(a)])) + " " + str(cone_area))
         # print(inverse())
         # print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
     # Set the speed and angle of the RACECAR after calculations have been complete
@@ -300,7 +312,7 @@ def update_slow():
             s[int(contour_center[1] / 20)] = "|"
             print("".join(s) + " : area = " + str(contour_area) + " Speed: " + str(round(speed, 2)) + " Angle " + str(round(angle, 2)))
     
-    # print(PURPLE_DATA)
+    # print(BLACK_DATA)
     # print()
     
 
