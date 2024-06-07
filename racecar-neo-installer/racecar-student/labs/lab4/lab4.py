@@ -36,6 +36,9 @@ running through the race in "race mode" to do the full course. Lowest time wins!
 import sys
 import cv2 as cv
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+import warnings
 
 # If this file is nested inside a folder in the labs folder, the relative path should
 # be [1, ../../library] instead.
@@ -48,14 +51,28 @@ import racecar_utils as rc_utils
 ########################################################################################
 
 rc = racecar_core.create_racecar()
-kP = -1
-MAX_SPEED = 1
+# >> Data
+YELLOW_DATA = [(119.09076690673828, 3605.0), (119.09076690673828, 3990.5), (106.42233276367188, 4469.5), (106.42233276367188, 5054.5), (106.42233276367188, 5751.0), (93.76941680908203, 6541.0), (93.76941680908203, 7456.5), (82.58345031738281, 8417.0), (82.58345031738281, 9598.0), (73.06322479248047, 10965.5), (73.06322479248047, 12590.5), (73.06322479248047, 14431.5), (63.33633804321289, 16582.5), (63.33633804321289, 19100.0)]
+yellow_params = None
+# x = np.linspace(3500, 19000, 155)
+# dists = list(zip(*YELLOW_DATA))[0]
+# areas = list(zip(*YELLOW_DATA))[1]
+# params, covar = curve_fit(inverse, areas, dists)
+# # y = params[0] * np.arctan(params[1] * x + params[2]) + params[3]
+# y = params[0] / x + params[1]
+# plt.plot(x, y)
+# print(f"Params: {params} Covariance: {covar}")
+# plt.scatter(areas, dists)
+# plt.show()
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour
-MIN_CONTOUR_AREA = 75
+MIN_LINE_CONTOUR_AREA = 75
+MIN_CONE_CONTOUR_AREA = 500
 HEIGHT = rc.camera.get_height()
 WIDTH = rc.camera.get_width()
+kP = -1
+MAX_SPEED = 1
 
 # A crop window for the floor directly in front of the car
 CROP_FLOOR = ((360, 0), (HEIGHT, WIDTH))
@@ -74,10 +91,10 @@ YELLOW = ((20, 0, 50), (40, 255, 255)); # The HSV range for the color yellow
 PURPLE = ((125, 50, 50), (165, 255, 255)); # The HSV range for the color purple
 
 # Color priority: Red >> Green >> Blue
-COLOR_PRIORITY = (RED, GREEN, BLUE)
+COLOR_PRIORITY = (RED, BLUE, GREEN)
 
 # Color of the cone
-CONE_COLOR = WHITE
+CONE_COLOR = YELLOW
 
 # >> Variables
 speed = 0.0  # The current speed of the car
@@ -86,12 +103,18 @@ contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
 cone_center = None;
 cone_area = 0;
-CONE_STOP_AREA = 3500;
+CONE_STOP_AREA = 5000;
 seeingCone = False;
 
 ########################################################################################
 # Functions
 ########################################################################################
+
+def inverse(x, a, b):
+    try:
+        return a / x + b
+    except:
+        pass
 
 # [FUNCTION] Finds contours in the current color image and uses them to update 
 # contour_center and contour_area
@@ -112,34 +135,37 @@ def update_contour():
          # Find the contour of the line and update contour_center and contour_area
         cropped_image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
         contours = rc_utils.find_contours(cropped_image, COLOR_PRIORITY[0][0], COLOR_PRIORITY[0][1])
-        c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+        line_c = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
 
-        if c is None:
+        if line_c is None:
             contours = rc_utils.find_contours(cropped_image, COLOR_PRIORITY[1][0], COLOR_PRIORITY[1][1])
-            c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+            line_c = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
 
-            if c is None:
+            if line_c is None:
                 contours = rc_utils.find_contours(cropped_image, COLOR_PRIORITY[2][0], COLOR_PRIORITY[2][1])
-                c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+                line_c = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
 
-        if c is not None:
-            contour_area = rc_utils.get_contour_area(c)
-            contour_center = rc_utils.get_contour_center(c)
-            rc_utils.draw_contour(cropped_image, c)
+        # Find cone contour
+        contours = rc_utils.find_contours(image, CONE_COLOR[0], CONE_COLOR[1])
+        cone_c = rc_utils.get_largest_contour(contours, MIN_CONE_CONTOUR_AREA)
+
+        # Update center and area variables
+        if line_c is not None:
+            contour_area = rc_utils.get_contour_area(line_c)
+            contour_center = rc_utils.get_contour_center(line_c)
+            rc_utils.draw_contour(cropped_image, line_c)
             rc_utils.draw_circle(cropped_image, contour_center)
+        else:
+            contour_area = 0
+            contour_center = None;
         
         # Find the contour of the cone and draw its center
-        # cropped_image = rc_utils.crop(image, CROP_CONE[0], CROP_CONE[1])
-        cropped_image = image
-        contours = rc_utils.find_contours(cropped_image, CONE_COLOR[0], CONE_COLOR[1])
-        c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
-        if c is not None:
-            # print()
-            center = rc_utils.get_contour_center(c)
-            rc_utils.draw_contour(cropped_image, c)
-            rc_utils.draw_circle(cropped_image, center)
-            cone_area = rc_utils.get_contour_area(c)
-            cone_center = rc_utils.get_contour_center(c)
+        if cone_c is not None:
+            center = rc_utils.get_contour_center(cone_c)
+            rc_utils.draw_contour(image, cone_c)
+            rc_utils.draw_circle(image, center)
+            cone_area = rc_utils.get_contour_area(cone_c)
+            cone_center = rc_utils.get_contour_center(cone_c)
             seeingCone = True;
         else:
             cone_center = None
@@ -165,7 +191,9 @@ def update_contour():
 def start():
     global speed
     global angle
+    global yellow_params
 
+    warnings.filterwarnings("ignore")
     # Initialize variables
     speed = 0
     angle = 0
@@ -175,6 +203,12 @@ def start():
 
     # Set update_slow to refresh every half second
     rc.set_update_slow_time(0.5)
+
+    # >>Compute parameters for all cone colors
+    #Yellow
+    dists = list(zip(*YELLOW_DATA))[0]
+    areas = list(zip(*YELLOW_DATA))[1]
+    yellow_params, covar = curve_fit(inverse, areas, dists)
 
     # Print start message
     print(
@@ -206,7 +240,9 @@ def update():
 
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
-    if cone_area > CONE_STOP_AREA:
+    dist = inverse(cone_area, yellow_params[0], yellow_params[1])
+    # if cone_area > CONE_STOP_AREA:
+    if dist < 100:
         speed = 0
         angle = 0
     elif contour_center is not None:
@@ -218,8 +254,11 @@ def update():
         angle = 0;
         speed = 0;
         
-    # if seeingCone:
-    #     print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
+    # if seeingCone and speed > 0:
+        # YELLOW_DATA.append((rc.lidar.get_samples()[0].item(), cone_area))
+        # print(rc.lidar.get_samples()[0].item())
+        # print(inverse())
+        # print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
     # Set the speed and angle of the RACECAR after calculations have been complete
     rc.drive.set_speed_angle(speed, angle)
 
@@ -256,6 +295,9 @@ def update_slow():
             s = ["-"] * 32
             s[int(contour_center[1] / 20)] = "|"
             print("".join(s) + " : area = " + str(contour_area) + " Speed: " + str(round(speed, 2)) + " Angle " + str(round(angle, 2)))
+    
+    # print(YELLOW_DATA)
+    # print()
     
 
 ########################################################################################
