@@ -50,13 +50,19 @@ import racecar_utils as rc_utils
 # Global variables
 ########################################################################################
 
+def inverse(x, a, b):
+    return a / x + b
+
 rc = racecar_core.create_racecar()
 # >> Data
 YELLOW_DATA = [(119.09076690673828, 3605.0), (119.09076690673828, 3990.5), (106.42233276367188, 4469.5), (106.42233276367188, 5054.5), (106.42233276367188, 5751.0), (93.76941680908203, 6541.0), (93.76941680908203, 7456.5), (82.58345031738281, 8417.0), (82.58345031738281, 9598.0), (73.06322479248047, 10965.5), (73.06322479248047, 12590.5), (73.06322479248047, 14431.5), (63.33633804321289, 16582.5), (63.33633804321289, 19100.0)]
 yellow_params = None
-# x = np.linspace(3500, 19000, 155)
-# dists = list(zip(*YELLOW_DATA))[0]
-# areas = list(zip(*YELLOW_DATA))[1]
+
+PURPLE_DATA = [(56.41253, 23810.5), (56.41253, 26949.5), (50.14364, 28060.0), (50.14364, 28372.0), (43.4857, 28413.0), (43.4857, 28905.0), (43.4857, 30518.0), (35.23148, 32656.0), (35.23148, 35724.5), (28.210056, 39571.0), (28.210056, 45766.5), (21.879967, 55658.0)]
+purple_params = None
+# x = np.linspace(3500, 55000, 1000)
+# dists = list(zip(*PURPLE_DATA))[0]
+# areas = list(zip(*PURPLE_DATA))[1]
 # params, covar = curve_fit(inverse, areas, dists)
 # # y = params[0] * np.arctan(params[1] * x + params[2]) + params[3]
 # y = params[0] / x + params[1]
@@ -91,10 +97,10 @@ YELLOW = ((20, 0, 50), (40, 255, 255)); # The HSV range for the color yellow
 PURPLE = ((125, 50, 50), (165, 255, 255)); # The HSV range for the color purple
 
 # Color priority: Red >> Green >> Blue
-COLOR_PRIORITY = (RED, BLUE, GREEN)
+COLOR_PRIORITY = (BLUE, RED, GREEN)
 
 # Color of the cone
-CONE_COLOR = YELLOW
+CONE_COLOR = PURPLE
 
 # >> Variables
 speed = 0.0  # The current speed of the car
@@ -109,12 +115,6 @@ seeingCone = False;
 ########################################################################################
 # Functions
 ########################################################################################
-
-def inverse(x, a, b):
-    try:
-        return a / x + b
-    except:
-        pass
 
 # [FUNCTION] Finds contours in the current color image and uses them to update 
 # contour_center and contour_area
@@ -192,6 +192,7 @@ def start():
     global speed
     global angle
     global yellow_params
+    global purple_params
 
     warnings.filterwarnings("ignore")
     # Initialize variables
@@ -209,6 +210,10 @@ def start():
     dists = list(zip(*YELLOW_DATA))[0]
     areas = list(zip(*YELLOW_DATA))[1]
     yellow_params, covar = curve_fit(inverse, areas, dists)
+    # Purple
+    dists = list(zip(*PURPLE_DATA))[0]
+    areas = list(zip(*PURPLE_DATA))[1]
+    purple_params, covar = curve_fit(inverse, areas, dists)
 
     # Print start message
     print(
@@ -240,23 +245,22 @@ def update():
 
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
-    dist = inverse(cone_area, yellow_params[0], yellow_params[1])
+    dist = inverse(cone_area, purple_params[0], purple_params[1])
     # if cone_area > CONE_STOP_AREA:
-    if dist < 100:
+    if dist < 50:
         speed = 0
-        angle = 0
-    elif contour_center is not None:
+    if contour_center is not None:
         setpoint = WIDTH // 2
         error = rc_utils.remap_range(setpoint - contour_center[1], -setpoint, setpoint, -1, 1);
         angle = kP * error
         speed = max(MAX_SPEED - abs(error), 0.1)
-    else:
-        angle = 0;
+    elif cone_center is None:
         speed = 0;
         
-    # if seeingCone and speed > 0:
-        # YELLOW_DATA.append((rc.lidar.get_samples()[0].item(), cone_area))
-        # print(rc.lidar.get_samples()[0].item())
+    if seeingCone:
+        a = rc.lidar.get_samples()
+        # PURPLE_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
+        print(str(np.min(a[np.nonzero(a)])) + " " + str(cone_area))
         # print(inverse())
         # print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
     # Set the speed and angle of the RACECAR after calculations have been complete
@@ -296,7 +300,7 @@ def update_slow():
             s[int(contour_center[1] / 20)] = "|"
             print("".join(s) + " : area = " + str(contour_area) + " Speed: " + str(round(speed, 2)) + " Angle " + str(round(angle, 2)))
     
-    # print(YELLOW_DATA)
+    # print(PURPLE_DATA)
     # print()
     
 
