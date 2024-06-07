@@ -49,26 +49,45 @@ import racecar_utils as rc_utils
 
 rc = racecar_core.create_racecar()
 kP = -1
+MAX_SPEED = 1
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour
-MIN_CONTOUR_AREA = 30
+MIN_CONTOUR_AREA = 75
+HEIGHT = rc.camera.get_height()
+WIDTH = rc.camera.get_width()
 
 # A crop window for the floor directly in front of the car
-CROP_FLOOR = ((360, 0), (rc.camera.get_height(), rc.camera.get_width()))
+CROP_FLOOR = ((360, 0), (HEIGHT, WIDTH))
+
+# A crop window for the center of the screen, for the cone
+kHeight = 0.25
+kWidth = 0.25
+CROP_CONE = ((HEIGHT // 2 - int(kHeight * HEIGHT), WIDTH // 2 - int(kWidth * WIDTH)), 
+             (HEIGHT // 2 + int(kHeight * HEIGHT), WIDTH // 2 + int(kWidth * WIDTH)))
 
 BLUE = ((80, 150, 50), (125, 255, 255)) # The HSV range for the color blue
-GREEN = ((30, 50, 50), (80, 255, 255))  # The HSV range for the color green
+GREEN = ((40, 50, 50), (80, 255, 255))  # The HSV range for the color green
 RED = ((165, 50, 50), (10, 255, 255))  # The HSV range for the color red
+WHITE = ((0, 60, 150), (179, 70, 255)); # The HSV range for the color white
+YELLOW = ((20, 0, 50), (40, 255, 255)); # The HSV range for the color yellow
+PURPLE = ((125, 50, 50), (165, 255, 255)); # The HSV range for the color purple
 
 # Color priority: Red >> Green >> Blue
 COLOR_PRIORITY = (RED, GREEN, BLUE)
+
+# Color of the cone
+CONE_COLOR = WHITE
 
 # >> Variables
 speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
+cone_center = None;
+cone_area = 0;
+CONE_STOP_AREA = 3500;
+seeingCone = False;
 
 ########################################################################################
 # Functions
@@ -79,31 +98,67 @@ contour_area = 0  # The area of contour
 def update_contour():
     global contour_center
     global contour_area
+    global cone_center
+    global cone_area
+    global seeingCone
 
     image = rc.camera.get_color_image()
+    hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
 
     if image is None:
         contour_area = 0;
         contour_center = None;
     else:
-        image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
-        
-        contours = rc_utils.find_contours(image, COLOR_PRIORITY[0][0], COLOR_PRIORITY[0][1])
+         # Find the contour of the line and update contour_center and contour_area
+        cropped_image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
+        contours = rc_utils.find_contours(cropped_image, COLOR_PRIORITY[0][0], COLOR_PRIORITY[0][1])
         c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+
         if c is None:
-            contours = rc_utils.find_contours(image, COLOR_PRIORITY[1][0], COLOR_PRIORITY[1][1])
+            contours = rc_utils.find_contours(cropped_image, COLOR_PRIORITY[1][0], COLOR_PRIORITY[1][1])
             c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
 
             if c is None:
-                contours = rc_utils.find_contours(image, COLOR_PRIORITY[2][0], COLOR_PRIORITY[2][1])
+                contours = rc_utils.find_contours(cropped_image, COLOR_PRIORITY[2][0], COLOR_PRIORITY[2][1])
                 c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
 
         if c is not None:
             contour_area = rc_utils.get_contour_area(c)
             contour_center = rc_utils.get_contour_center(c)
-            rc_utils.draw_contour(image, c)
-            rc_utils.draw_circle(image, contour_center)
+            rc_utils.draw_contour(cropped_image, c)
+            rc_utils.draw_circle(cropped_image, contour_center)
         
+        # Find the contour of the cone and draw its center
+        # cropped_image = rc_utils.crop(image, CROP_CONE[0], CROP_CONE[1])
+        cropped_image = image
+        contours = rc_utils.find_contours(cropped_image, CONE_COLOR[0], CONE_COLOR[1])
+        c = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+        if c is not None:
+            # print()
+            center = rc_utils.get_contour_center(c)
+            rc_utils.draw_contour(cropped_image, c)
+            rc_utils.draw_circle(cropped_image, center)
+            cone_area = rc_utils.get_contour_area(c)
+            cone_center = rc_utils.get_contour_center(c)
+            seeingCone = True;
+        else:
+            cone_center = None
+            cone_area = 0
+            seeingCone = False;
+            # print(cone_area)
+            # print(hsv[center[0]][center[1]])
+
+        # row = 390
+        # col = 253
+        # hsvimg = np.zeros((300, 300, 3), np.uint8)
+        # hsvimg[:] = hsv[row][col]
+        # BGRimg = cv.cvtColor(hsvimg, cv.COLOR_HSV2BGR)
+        # # rc_utils.draw_circle(image, (x, y))
+        # cv.circle(image, (col, row), 1, (0, 0, 0), 1)
+        # cv.namedWindow("Color", cv.WINDOW_NORMAL)
+        # cv.imshow("Color", BGRimg)
+        # print(hsv[row][col])
+
         rc.display.show_color_image(image)
 
 # [FUNCTION] The start function is run once every time the start button is pressed
@@ -151,15 +206,20 @@ def update():
 
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
-    if contour_center is not None:
-        setpoint = rc.camera.get_width() // 2
+    if cone_area > CONE_STOP_AREA:
+        speed = 0
+        angle = 0
+    elif contour_center is not None:
+        setpoint = WIDTH // 2
         error = rc_utils.remap_range(setpoint - contour_center[1], -setpoint, setpoint, -1, 1);
         angle = kP * error
-        speed = max(1 - abs(error), 0.1)
+        speed = max(MAX_SPEED - abs(error), 0.1)
     else:
         angle = 0;
         speed = 0;
         
+    # if seeingCone:
+    #     print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
     # Set the speed and angle of the RACECAR after calculations have been complete
     rc.drive.set_speed_angle(speed, angle)
 
@@ -185,17 +245,18 @@ def update_slow():
     # Print a line of ascii text denoting the contour area and x-position
     if rc.camera.get_color_image() is None:
         # If no image is found, print all X's and don't display an image
-        print("X" * 10 + " (No image) " + "X" * 10)
+        print("X" * 10 + " (No image) " + "X" * 10 + " Speed: " + str(round(speed, 2)) + " Angle " + str(round(angle, 2)))
     else:
         # If an image is found but no contour is found, print all dashes
         if contour_center is None:
-            print("-" * 32 + " : area = " + str(contour_area))
+            print("-" * 32 + " : area = " + str(contour_area) + " Speed: " + str(round(speed, 2)) + " Angle " + str(round(angle, 2)))
 
         # Otherwise, print a line of dashes with a | indicating the contour x-position
         else:
             s = ["-"] * 32
             s[int(contour_center[1] / 20)] = "|"
-            print("".join(s) + " : area = " + str(contour_area))
+            print("".join(s) + " : area = " + str(contour_area) + " Speed: " + str(round(speed, 2)) + " Angle " + str(round(angle, 2)))
+    
 
 ########################################################################################
 # DO NOT MODIFY: Register start and update and begin execution
