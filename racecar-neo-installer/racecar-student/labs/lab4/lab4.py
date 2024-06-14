@@ -39,6 +39,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import warnings
+# from cone import cone
 
 # If this file is nested inside a folder in the labs folder, the relative path should
 # be [1, ../../library] instead.
@@ -53,27 +54,40 @@ import racecar_utils as rc_utils
 def inverse(x, a, b):
     return a / x + b
 
+cones = [] # List of cones and their data: Yellow, Purple, Black, . Order is color, params, distance, and then priority.
 rc = racecar_core.create_racecar()
+
 # >> Data
-YELLOW_DATA = [(119.09076690673828, 3605.0), (119.09076690673828, 3990.5), (106.42233276367188, 4469.5), (106.42233276367188, 5054.5), (106.42233276367188, 5751.0), (93.76941680908203, 6541.0), (93.76941680908203, 7456.5), (82.58345031738281, 8417.0), (82.58345031738281, 9598.0), (73.06322479248047, 10965.5), (73.06322479248047, 12590.5), (73.06322479248047, 14431.5), (63.33633804321289, 16582.5), (63.33633804321289, 19100.0)]
-yellow_params = None
+YELLOW_DATA = [(119.09076690673828, 3605.0), (119.09076690673828, 3990.5), (106.42233276367188, 4469.5), 
+               (106.42233276367188, 5054.5), (106.42233276367188, 5751.0), (93.76941680908203, 6541.0), 
+               (93.76941680908203, 7456.5), (82.58345031738281, 8417.0), (82.58345031738281, 9598.0), 
+               (73.06322479248047, 10965.5), (73.06322479248047, 12590.5), (73.06322479248047, 14431.5), 
+               (63.33633804321289, 16582.5), (63.33633804321289, 19100.0)]
+YELLOW_DIST = 100
 
-PURPLE_DATA = [(56.41253, 23810.5), (56.41253, 26949.5), (50.14364, 28060.0), (50.14364, 28372.0), (43.4857, 28413.0), (43.4857, 28905.0), (43.4857, 30518.0), (35.23148, 32656.0), (35.23148, 35724.5), (28.210056, 39571.0), (28.210056, 45766.5), (21.879967, 55658.0)]
-purple_params = None
+PURPLE_DATA = [(56.41253, 23810.5), (56.41253, 26949.5), (50.14364, 28060.0), (50.14364, 28372.0), (43.4857, 28413.0), 
+               (43.4857, 28905.0), (43.4857, 30518.0), (35.23148, 32656.0), (35.23148, 35724.5), (28.210056, 39571.0), 
+               (28.210056, 45766.5), (21.879967, 55658.0)]
+PURPLE_DIST = 50
 
-BLACK_DATA = [(117.08385, 2799.5), (114.23585, 2938.0), (114.23585, 2966.0), (106.67781, 3008.5), (106.67781, 3055.0), (104.67302, 3412.0), (104.67302, 3500.0), (100.96707, 3590.0), (100.96707, 3711.5), (100.96707, 3829.5), (97.7365, 3976.5), (97.7365, 4128.5), (94.14725, 4293.5), (94.14725, 4495.0), (88.301476, 4718.0), (88.301476, 4958.0), (84.95589, 5255.0), (84.95589, 5580.5), (84.95589, 5951.5), (79.08421, 6401.0), (79.08421, 6928.5), (72.34155, 7548.5), (72.34155, 8228.5), (67.820755, 9021.0), (67.820755, 10079.5), (67.820755, 11557.0), (60.660454, 13412.0), (60.660454, 15556.5)]
-black_params = None
+BLACK_DATA = [(117.08385, 2799.5), (114.23585, 2938.0), (114.23585, 2966.0), (106.67781, 3008.5), (106.67781, 3055.0), 
+              (104.67302, 3412.0), (104.67302, 3500.0), (100.96707, 3590.0), (100.96707, 3711.5), (100.96707, 3829.5), 
+              (97.7365, 3976.5), (97.7365, 4128.5), (94.14725, 4293.5), (94.14725, 4495.0), (88.301476, 4718.0), 
+              (88.301476, 4958.0), (84.95589, 5255.0), (84.95589, 5580.5), (84.95589, 5951.5), (79.08421, 6401.0), 
+              (79.08421, 6928.5), (72.34155, 7548.5), (72.34155, 8228.5), (67.820755, 9021.0), (67.820755, 10079.5), 
+              (67.820755, 11557.0), (60.660454, 13412.0), (60.660454, 15556.5)]
+BLACK_DIST = 60
 
-x = np.linspace(3500, 55000, 1000)
-dists = list(zip(*BLACK_DATA))[0]
-areas = list(zip(*BLACK_DATA))[1]
-params, covar = curve_fit(inverse, areas, dists)
-# y = params[0] * np.arctan(params[1] * x + params[2]) + params[3]
-y = params[0] / x + params[1]
-plt.plot(x, y)
-print(f"Params: {params} Covariance: {covar}")
-plt.scatter(areas, dists)
-plt.show()
+# x = np.linspace(3500, 55000, 1000)
+# dists = list(zip(*BLACK_DATA))[0]
+# areas = list(zip(*BLACK_DATA))[1]
+# params, covar = curve_fit(inverse, areas, dists)
+# # y = params[0] * np.arctan(params[1] * x + params[2]) + params[3]
+# y = params[0] / x + params[1]
+# plt.plot(x, y)
+# print(f"Params: {params} Covariance: {covar}")
+# plt.scatter(areas, dists)
+# plt.show()
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour
@@ -102,10 +116,18 @@ PURPLE = ((125, 50, 50), (165, 255, 255)); # The HSV range for the color purple
 BLACK = ((0, 50, 0), (179, 255, 56))
 
 # Color priority: Red >> Green >> Blue
-COLOR_PRIORITY = (GREEN, RED, BLUE)
+WHITE_COLOR_PRIORITY = (RED, GREEN, BLUE)
+YELLOW_COLOR_PRIORITY = (RED, BLUE, GREEN)
+BLACK_COLOR_PRIORITY = (GREEN, BLUE, RED)
+PURPLE_COLOR_PRIORITY = (BLUE, RED, GREEN)
+
+NUM_CONES = 3
 
 # Color of the cone
-CONE_COLOR = BLACK
+cone_color = None
+cone_params = None
+cone_dist = 0
+cone_color_priority = None;
 
 # >> Variables
 speed = 0.0  # The current speed of the car
@@ -116,6 +138,14 @@ cone_center = None;
 cone_area = 0;
 CONE_STOP_AREA = 5000;
 seeingCone = False;
+X_Released = True;
+cone_ind = 0
+NUM_ATTRIBUTES = 5;
+COLOR_IND = 0;
+PARAMS_IND = 1;
+DIST_IND = 2;
+PRIORITY_IND = 3;
+NAME_IND = 4;
 
 ########################################################################################
 # Functions
@@ -139,38 +169,38 @@ def update_contour():
     else:
          # Find the contour of the line and update contour_center and contour_area
         cropped_image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
-        contours = rc_utils.find_contours(cropped_image, COLOR_PRIORITY[0][0], COLOR_PRIORITY[0][1])
-        line_c = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
+        contours = rc_utils.find_contours(cropped_image, cone_color_priority[0][0], cone_color_priority[0][1])
+        line_contour = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
 
-        if line_c is None:
-            contours = rc_utils.find_contours(cropped_image, COLOR_PRIORITY[1][0], COLOR_PRIORITY[1][1])
-            line_c = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
+        if line_contour is None:
+            contours = rc_utils.find_contours(cropped_image, cone_color_priority[1][0], cone_color_priority[1][1])
+            line_contour = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
 
-            if line_c is None:
-                contours = rc_utils.find_contours(cropped_image, COLOR_PRIORITY[2][0], COLOR_PRIORITY[2][1])
-                line_c = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
+            if line_contour is None:
+                contours = rc_utils.find_contours(cropped_image, cone_color_priority[2][0], cone_color_priority[2][1])
+                line_contour = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
 
         # Find cone contour
-        contours = rc_utils.find_contours(image, CONE_COLOR[0], CONE_COLOR[1])
-        cone_c = rc_utils.get_largest_contour(contours, MIN_CONE_CONTOUR_AREA)
+        contours = rc_utils.find_contours(image, cone_color[0], cone_color[1])
+        cone_contour = rc_utils.get_largest_contour(contours, MIN_CONE_CONTOUR_AREA)
 
         # Update center and area variables
-        if line_c is not None:
-            contour_area = rc_utils.get_contour_area(line_c)
-            contour_center = rc_utils.get_contour_center(line_c)
-            rc_utils.draw_contour(cropped_image, line_c)
+        if line_contour is not None:
+            contour_area = rc_utils.get_contour_area(line_contour)
+            contour_center = rc_utils.get_contour_center(line_contour)
+            rc_utils.draw_contour(cropped_image, line_contour)
             rc_utils.draw_circle(cropped_image, contour_center)
         else:
             contour_area = 0
             contour_center = None;
         
         # Find the contour of the cone and draw its center
-        if cone_c is not None:
-            center = rc_utils.get_contour_center(cone_c)
-            rc_utils.draw_contour(image, cone_c)
+        if cone_contour is not None:
+            center = rc_utils.get_contour_center(cone_contour)
+            rc_utils.draw_contour(image, cone_contour)
             rc_utils.draw_circle(image, center)
-            cone_area = rc_utils.get_contour_area(cone_c)
-            cone_center = rc_utils.get_contour_center(cone_c)
+            cone_area = rc_utils.get_contour_area(cone_contour)
+            cone_center = rc_utils.get_contour_center(cone_contour)
             seeingCone = True;
         else:
             cone_center = None
@@ -192,18 +222,30 @@ def update_contour():
 
         rc.display.show_color_image(image)
 
+def createArr(color:list, params:tuple, distance:int, priority:list, name:str):
+    l = [None for _ in range(NUM_ATTRIBUTES)]
+    l.insert(COLOR_IND, color)
+    l.insert(PARAMS_IND, params)
+    l.insert(DIST_IND, distance)
+    l.insert(PRIORITY_IND, priority)
+    l.insert(NAME_IND, name)
+    return l
+
 # [FUNCTION] The start function is run once every time the start button is pressed
 def start():
     global speed
     global angle
-    global yellow_params
-    global purple_params
-    global black_params
+    global cone_color
+    global cone_color_priority
+    global cone_dist
+    global cone_params
+    global cones
 
     warnings.filterwarnings("ignore")
     # Initialize variables
     speed = 0
     angle = 0
+    cones = []
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
@@ -211,19 +253,33 @@ def start():
     # Set update_slow to refresh every half second
     rc.set_update_slow_time(0.5)
 
-    # >>Compute parameters for all cone colors
+    # >> Compute parameters for all cone colors
     #Yellow
     dists = list(zip(*YELLOW_DATA))[0]
     areas = list(zip(*YELLOW_DATA))[1]
-    yellow_params, covar = curve_fit(inverse, areas, dists)
+    yellow_params, _ = curve_fit(inverse, areas, dists)
     # Purple
     dists = list(zip(*PURPLE_DATA))[0]
     areas = list(zip(*PURPLE_DATA))[1]
-    purple_params, covar = curve_fit(inverse, areas, dists)
+    purple_params, _ = curve_fit(inverse, areas, dists)
     # Black
     dists = list(zip(*BLACK_DATA))[0]
     areas = list(zip(*BLACK_DATA))[1]
-    black_params, covar = curve_fit(inverse, areas, dists)
+    black_params, _ = curve_fit(inverse, areas, dists)
+
+    # >> Add parameters to cones list
+    # Yellow
+    cones.append(createArr(YELLOW, yellow_params, YELLOW_DIST, YELLOW_COLOR_PRIORITY, "YELLOW"))
+    # Purple
+    cones.append(createArr(PURPLE, purple_params, PURPLE_DIST, PURPLE_COLOR_PRIORITY, "PURPLE"))
+    # Black
+    cones.append(createArr(BLACK, black_params, BLACK_DIST, BLACK_COLOR_PRIORITY, "BLACK"))
+
+    # >> Set cone target parameters for default
+    cone_color = cones[cone_ind][COLOR_IND]
+    cone_params = cones[cone_ind][PARAMS_IND]
+    cone_dist = cones[cone_ind][DIST_IND]
+    cone_color_priority = cones[cone_ind][PRIORITY_IND]
 
     # Print start message
     print(
@@ -231,7 +287,8 @@ def start():
         "\n"
         "Controls:\n"
         "   A button = print current speed and angle\n"
-        "   B button = print contour center and area"
+        "   B button = print contour center and area\n"
+        "   Right trigger = next color cone"
     )
 
 # [FUNCTION] After start() is run, this function is run once every frame (ideally at
@@ -245,29 +302,46 @@ def update():
     global speed
     global angle
     global kP
+    global cone_ind
+    global cone_color
+    global cone_params
+    global cone_dist
+    global cone_color_priority
+    global X_Released
 
     # Search for contours in the current color image
     update_contour()
 
-    # TODO Part 3: Determine the angle that the RACECAR should receive based on the current 
-    # position of the center of line contour on the screen. Hint: The RACECAR should drive in
-    # a direction that moves the line back to the center of the screen.
+    if (rc.controller.is_down(rc.controller.Button.X) and X_Released):
+        cone_ind += 1;
+        if (cone_ind >= NUM_CONES):
+            cone_ind = 0;
+
+        cone_color = cones[cone_ind][COLOR_IND]
+        cone_params = cones[cone_ind][PARAMS_IND]
+        cone_dist = cones[cone_ind][DIST_IND]
+        cone_color_priority = cones[cone_ind][PRIORITY_IND]
+        X_Released = False
+        print("Targeting cone: " + cones[cone_ind][NAME_IND])
+    else:
+        X_Released = True
 
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
     if cone_center is not None:
-        dist = inverse(cone_area, black_params[0], black_params[1])
+        dist = inverse(cone_area, cone_params[0], cone_params[1])
         # if cone_area > CONE_STOP_AREA:
-        print(dist)
-        if dist < 60:
+        # print(dist < cone_dist)
+    if cone_center is not None and dist < cone_dist:
             speed = 0
-    if contour_center is not None:
+    elif contour_center is not None:
         setpoint = WIDTH // 2
         error = rc_utils.remap_range(setpoint - contour_center[1], -setpoint, setpoint, -1, 1);
         angle = kP * error
         speed = max(MAX_SPEED - abs(error), 0.1)
     elif cone_center is None:
         speed = 0.1;
+    # print(speed)
         
     # if seeingCone:
         # a = rc.lidar.get_samples()
