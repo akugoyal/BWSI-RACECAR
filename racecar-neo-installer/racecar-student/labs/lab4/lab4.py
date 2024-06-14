@@ -94,9 +94,13 @@ PINK_DATA = [
              (80.79254, 8639.5), (72.09478, 10147.5), (72.09478, 12535.0), (61.814377, 14981.0), (61.814377, 18304.5), 
              (61.814377, 22997.0)]
 PINK_DIST = 90
+
+WHITE_DATA = [(69.81981, 5135.5), (65.80033, 7240.5), (65.80033, 9496.0), 
+              (60.057293, 11892.5), (60.057293, 14424.5), (54.803596, 17024.5), (54.803596, 19643.0), (54.803596, 22484.5)]
+WHITE_DIST = 70
 # x = np.linspace(2000, 55000, 1000)
-# dists = list(zip(*PINK_DATA))[0]
-# areas = list(zip(*PINK_DATA))[1]
+# dists = list(zip(*WHITE_DATA))[0]
+# areas = list(zip(*WHITE_DATA))[1]
 # params, covar = curve_fit(inverse, areas, dists)
 # # y = params[0] * np.arctan(params[1] * x + params[2]) + params[3]
 # y = params[0] / x + params[1]
@@ -141,7 +145,7 @@ PURPLE_COLOR_PRIORITY = (BLUE, RED, GREEN)
 ORANGE_COLOR_PRIORITY = (BLUE, GREEN, RED)
 PINK_COLOR_PRIORITY = (GREEN, BLUE, RED)
 
-NUM_CONES = 5
+NUM_CONES = 6
 
 # Color of the cone
 cone_color = None
@@ -295,6 +299,10 @@ def start():
     dists = list(zip(*PINK_DATA))[0]
     areas = list(zip(*PINK_DATA))[1]
     pink_params, _ = curve_fit(inverse, areas, dists)
+    # White
+    dists = list(zip(*WHITE_DATA))[0]
+    areas = list(zip(*WHITE_DATA))[1]
+    white_params, _ = curve_fit(inverse, areas, dists)
 
 
     # >> Add parameters to cones list
@@ -306,8 +314,10 @@ def start():
     cones.append(createArr(BLACK, black_params, BLACK_DIST, BLACK_COLOR_PRIORITY, "BLACK"))
     # Orange
     cones.append(createArr(ORANGE, orange_params, ORANGE_DIST, ORANGE_COLOR_PRIORITY, "ORANGE"))
-    # Orange
+    # Pink
     cones.append(createArr(PINK, pink_params, PINK_DIST, PINK_COLOR_PRIORITY, "PINK"))
+    # White
+    cones.append(createArr(WHITE, white_params, WHITE_DIST, WHITE_COLOR_PRIORITY, "WHITE"))
 
     # >> Set cone target parameters for default
     cone_color = cones[cone_ind][COLOR_IND]
@@ -379,11 +389,14 @@ def update():
         
     # if seeingCone:
     #     a = rc.lidar.get_samples()
-    #     PINK_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
+    #     WHITE_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
     #     # print(str(np.min(a[np.nonzero(a)])) + " " + str(cone_area))
     #     # print(inverse())
     #     # print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
-    #     print(PINK_DATA)
+    #     print(WHITE_DATA)
+    #     print()
+    # else:
+    #     WHITE_DATA.append((0, 0))
     # Set the speed and angle of the RACECAR after calculations have been complete
     rc.drive.set_speed_angle(speed, angle)
 
@@ -409,17 +422,20 @@ def update_slow():
     # Print a line of ascii text denoting the contour area and x-position
     if rc.camera.get_color_image() is None:
         # If no image is found, print all X's and don't display an image
-        print("X" * 10 + " (No image) " + "X" * 10 + " Speed: " + str(round(speed, 2)) + " Angle " + str(round(angle, 2)))
+        print("X" * 10 + " (No image) " + "X" * 10 + "Cone: " + cones[cone_ind][NAME_IND] + "\t  Speed: " + str(round(speed, 2)) + 
+              "\tAngle " + str(round(angle, 2)))
     else:
         # If an image is found but no contour is found, print all dashes
         if contour_center is None:
-            print("-" * 32 + " : area = " + str(contour_area) + " Speed: " + str(round(speed, 2)) + " Angle " + str(round(angle, 2)))
+            print("-" * 32 + " : Cone: " + cones[cone_ind][NAME_IND] + "\t  Speed: " + 
+                  str(round(speed, 2)) + "\tAngle " + str(round(angle, 2)))
 
         # Otherwise, print a line of dashes with a | indicating the contour x-position
         else:
             s = ["-"] * 32
             s[int(contour_center[1] / 20)] = "|"
-            print("".join(s) + " : area = " + str(contour_area) + " Speed: " + str(round(speed, 2)) + " Angle " + str(round(angle, 2)))
+            print("".join(s) + " : Cone: " + cones[cone_ind][NAME_IND] + "\t  Speed: " + 
+                  str(round(speed, 2)) + "\tAngle " + str(round(angle, 2)))
     
     # print(BLACK_DATA)
     # print()
