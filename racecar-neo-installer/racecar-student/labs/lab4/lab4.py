@@ -39,7 +39,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import warnings
-# from cone import cone
 
 # If this file is nested inside a folder in the labs folder, the relative path should
 # be [1, ../../library] instead.
@@ -50,13 +49,74 @@ import racecar_utils as rc_utils
 ########################################################################################
 # Global variables
 ########################################################################################
-
-def inverse(x, a, b):
-    return a / x + b
-
-cones = [] # List of cones and their data: Yellow, Purple, Black, . Order is color, params, distance, and then priority.
 rc = racecar_core.create_racecar()
+
+# >> Variables
+cones = [] # List of cones and their data. Order is color, params, distance, line color priority, and then name.
+
+# Information about the current target cone. Gets updated if the target changes.
+cone_ind = 0
+cone_color = None
+cone_params = None
+cone_dist = 0
+cone_color_priority = None
+cone_name = None
+X_Released = True # Used for changing the target cone
+
+speed = 0.0  # The current speed of the car
+angle = 0.0  # The current angle of the car's wheels
+
+# Used for keeping track of the line and cone contours detected in the image.
+contour_center = None  # The (pixel row, pixel column) of contour
+contour_area = 0  # The area of contour
+cone_center = None;
+cone_area = 0;
+
+# >> Constants
+# Bounds for the racecar speed
 MIN_SPEED = 0.3
+MAX_SPEED = 1
+
+# The smallest contour we will recognize as a valid contour
+MIN_LINE_CONTOUR_AREA = 75
+MIN_CONE_CONTOUR_AREA = 1500
+
+# Height and width of the image from the color camera
+HEIGHT = rc.camera.get_height()
+WIDTH = rc.camera.get_width()
+
+# Gains for the P controller
+kP = -1
+
+BLUE = ((80, 150, 50), (125, 255, 255)) # The HSV range for the color blue
+GREEN = ((40, 50, 50), (80, 255, 255))  # The HSV range for the color green
+RED = ((0, 210, 210), (10, 255, 255))  # The HSV range for the color red
+WHITE = ((0, 60, 150), (179, 70, 255)) # The HSV range for the color white
+YELLOW = ((20, 0, 50), (40, 255, 255)) # The HSV range for the color yellow
+PURPLE = ((125, 50, 50), (165, 255, 255)) # The HSV range for the color purple
+BLACK = ((0, 50, 0), (179, 255, 56)) # The HSV range for the color black
+ORANGE = ((10, 50, 50), (20, 255, 255)) # The HSV range for the color orange
+PINK = ((90, 170, 150), (179, 230, 255)) # The HSV range for the color pink
+
+# A crop window for the floor directly in front of the car
+CROP_FLOOR = ((330, 0), (HEIGHT - 30, WIDTH))
+
+# Line color priorities
+WHITE_COLOR_PRIORITY = (RED, GREEN, BLUE)
+YELLOW_COLOR_PRIORITY = (RED, BLUE, GREEN)
+BLACK_COLOR_PRIORITY = (GREEN, RED, BLUE)
+PURPLE_COLOR_PRIORITY = (BLUE, RED, GREEN)
+ORANGE_COLOR_PRIORITY = (BLUE, GREEN, RED)
+PINK_COLOR_PRIORITY = (GREEN, BLUE, RED)
+
+# Constants for storing information about the cones
+NUM_CONES = 6
+NUM_ATTRIBUTES = 5
+COLOR_IND = 0
+PARAMS_IND = 1
+DIST_IND = 2
+PRIORITY_IND = 3
+NAME_IND = 4
 
 # >> Data
 YELLOW_DATA = [(119.09076690673828, 3605.0), (119.09076690673828, 3990.5), (106.42233276367188, 4469.5), 
@@ -98,82 +158,15 @@ PINK_DIST = 90
 WHITE_DATA = [(69.81981, 5135.5), (65.80033, 7240.5), (65.80033, 9496.0), 
               (60.057293, 11892.5), (60.057293, 14424.5), (54.803596, 17024.5), (54.803596, 19643.0), (54.803596, 22484.5)]
 WHITE_DIST = 70
-# x = np.linspace(2000, 55000, 1000)
-# dists = list(zip(*WHITE_DATA))[0]
-# areas = list(zip(*WHITE_DATA))[1]
-# params, covar = curve_fit(inverse, areas, dists)
-# # y = params[0] * np.arctan(params[1] * x + params[2]) + params[3]
-# y = params[0] / x + params[1]
-# plt.plot(x, y)
-# print(f"Params: {params} Covariance: {covar}")
-# plt.scatter(areas, dists)
-# plt.show()
-
-# >> Constants
-# The smallest contour we will recognize as a valid contour
-MIN_LINE_CONTOUR_AREA = 75
-MIN_CONE_CONTOUR_AREA = 1500
-HEIGHT = rc.camera.get_height()
-WIDTH = rc.camera.get_width()
-kP = -1
-MAX_SPEED = 1
-
-# A crop window for the floor directly in front of the car
-CROP_FLOOR = ((330, 0), (HEIGHT - 30, WIDTH))
-
-# A crop window for the center of the screen, for the cone
-kHeight = 0.25
-kWidth = 0.25
-CROP_CONE = ((HEIGHT // 2 - int(kHeight * HEIGHT), WIDTH // 2 - int(kWidth * WIDTH)), 
-             (HEIGHT // 2 + int(kHeight * HEIGHT), WIDTH // 2 + int(kWidth * WIDTH)))
-
-BLUE = ((80, 150, 50), (125, 255, 255)) # The HSV range for the color blue
-GREEN = ((40, 50, 50), (80, 255, 255))  # The HSV range for the color green
-RED = ((0, 210, 210), (10, 255, 255))  # The HSV range for the color red
-WHITE = ((0, 60, 150), (179, 70, 255)); # The HSV range for the color white
-YELLOW = ((20, 0, 50), (40, 255, 255)); # The HSV range for the color yellow
-PURPLE = ((125, 50, 50), (165, 255, 255)); # The HSV range for the color purple
-BLACK = ((0, 50, 0), (179, 255, 56))
-ORANGE = ((10, 50, 50), (20, 255, 255))
-PINK = ((90, 170, 150), (179, 230, 255))
-
-# Color priority: Red >> Green >> Blue
-WHITE_COLOR_PRIORITY = (RED, GREEN, BLUE)
-YELLOW_COLOR_PRIORITY = (RED, BLUE, GREEN)
-BLACK_COLOR_PRIORITY = (GREEN, RED, BLUE)
-PURPLE_COLOR_PRIORITY = (BLUE, RED, GREEN)
-ORANGE_COLOR_PRIORITY = (BLUE, GREEN, RED)
-PINK_COLOR_PRIORITY = (GREEN, BLUE, RED)
-
-NUM_CONES = 6
-
-# Color of the cone
-cone_color = None
-cone_params = None
-cone_dist = 0
-cone_color_priority = None;
-
-# >> Variables
-speed = 0.0  # The current speed of the car
-angle = 0.0  # The current angle of the car's wheels
-contour_center = None  # The (pixel row, pixel column) of contour
-contour_area = 0  # The area of contour
-cone_center = None;
-cone_area = 0;
-CONE_STOP_AREA = 5000;
-seeingCone = False;
-X_Released = True;
-cone_ind = 0
-NUM_ATTRIBUTES = 5;
-COLOR_IND = 0;
-PARAMS_IND = 1;
-DIST_IND = 2;
-PRIORITY_IND = 3;
-NAME_IND = 4;
 
 ########################################################################################
 # Functions
 ########################################################################################
+
+# [FUNCTION] The inverse function computes a / x + b based on the given parameters. 
+# Used for calculating the area-distance regressions.
+def inverse(x, a, b):
+    return a / x + b
 
 # [FUNCTION] Finds contours in the current color image and uses them to update 
 # contour_center and contour_area
@@ -182,10 +175,8 @@ def update_contour():
     global contour_area
     global cone_center
     global cone_area
-    global seeingCone
 
     image = rc.camera.get_color_image()
-    hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
 
     if image is None:
         contour_area = 0;
@@ -225,29 +216,15 @@ def update_contour():
             rc_utils.draw_circle(image, center)
             cone_area = rc_utils.get_contour_area(cone_contour)
             cone_center = rc_utils.get_contour_center(cone_contour)
-            # print("c: " + str(hsv[cone_center[0]][cone_center[1]]))
-            seeingCone = True;
         else:
             cone_center = None
             cone_area = 0
-            seeingCone = False;
-            # print(cone_area)
-            # print(hsv[center[0]][center[1]])
-
-        # row = 350
-        # col = 170
-        # hsvimg = np.zeros((300, 300, 3), np.uint8)
-        # hsvimg[:] = hsv[row][col]
-        # BGRimg = cv.cvtColor(hsvimg, cv.COLOR_HSV2BGR)
-        # # rc_utils.draw_circle(image, (x, y))
-        # cv.circle(image, (col, row), 1, (30, 255, 255), 1)
-        # cv.namedWindow("Color", cv.WINDOW_NORMAL)
-        # cv.imshow("Color", BGRimg)
-        # print(hsv[row][col])
 
         rc.display.show_color_image(image)
 
-def createArr(color:list, params:tuple, distance:int, priority:list, name:str):
+# [FUNCTION] Utility function to create a list based on the provided information and 
+# the format given by the constants.
+def create_info_list(color:list, params:tuple, distance:int, priority:list, name:str):
     l = [None for _ in range(NUM_ATTRIBUTES)]
     l.insert(COLOR_IND, color)
     l.insert(PARAMS_IND, params)
@@ -264,13 +241,11 @@ def start():
     global cone_color_priority
     global cone_dist
     global cone_params
+    global cone_name
     global cones
 
+    # Ignore all warnings
     warnings.filterwarnings("ignore")
-    # Initialize variables
-    speed = 0
-    angle = 0
-    cones = []
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
@@ -305,25 +280,26 @@ def start():
     white_params, _ = curve_fit(inverse, areas, dists)
 
 
-    # >> Add parameters to cones list
+    # >> Add parameters to list of cones
     # Yellow
-    cones.append(createArr(YELLOW, yellow_params, YELLOW_DIST, YELLOW_COLOR_PRIORITY, "YELLOW"))
+    cones.append(create_info_list(YELLOW, yellow_params, YELLOW_DIST, YELLOW_COLOR_PRIORITY, "YELLOW"))
     # Purple
-    cones.append(createArr(PURPLE, purple_params, PURPLE_DIST, PURPLE_COLOR_PRIORITY, "PURPLE"))
+    cones.append(create_info_list(PURPLE, purple_params, PURPLE_DIST, PURPLE_COLOR_PRIORITY, "PURPLE"))
     # Black
-    cones.append(createArr(BLACK, black_params, BLACK_DIST, BLACK_COLOR_PRIORITY, "BLACK"))
+    cones.append(create_info_list(BLACK, black_params, BLACK_DIST, BLACK_COLOR_PRIORITY, "BLACK"))
     # Orange
-    cones.append(createArr(ORANGE, orange_params, ORANGE_DIST, ORANGE_COLOR_PRIORITY, "ORANGE"))
+    cones.append(create_info_list(ORANGE, orange_params, ORANGE_DIST, ORANGE_COLOR_PRIORITY, "ORANGE"))
     # Pink
-    cones.append(createArr(PINK, pink_params, PINK_DIST, PINK_COLOR_PRIORITY, "PINK"))
+    cones.append(create_info_list(PINK, pink_params, PINK_DIST, PINK_COLOR_PRIORITY, "PINK"))
     # White
-    cones.append(createArr(WHITE, white_params, WHITE_DIST, WHITE_COLOR_PRIORITY, "WHITE"))
+    cones.append(create_info_list(WHITE, white_params, WHITE_DIST, WHITE_COLOR_PRIORITY, "WHITE"))
 
     # >> Set cone target parameters for default
     cone_color = cones[cone_ind][COLOR_IND]
     cone_params = cones[cone_ind][PARAMS_IND]
     cone_dist = cones[cone_ind][DIST_IND]
     cone_color_priority = cones[cone_ind][PRIORITY_IND]
+    cone_name = cones[cone_ind][NAME_IND]
 
     # Print start message
     print(
@@ -332,7 +308,7 @@ def start():
         "Controls:\n"
         "   A button = print current speed and angle\n"
         "   B button = print contour center and area\n"
-        "   Right trigger = next color cone"
+        "   X button = switch to next target cone"
     )
 
 # [FUNCTION] After start() is run, this function is run once every frame (ideally at
@@ -352,21 +328,23 @@ def update():
     global cone_dist
     global cone_color_priority
     global X_Released
+    global cone_name
 
     # Search for contours in the current color image
     update_contour()
 
     if (rc.controller.is_down(rc.controller.Button.X) and X_Released):
-        cone_ind += 1;
+        cone_ind += 1
         if (cone_ind >= NUM_CONES):
-            cone_ind = 0;
+            cone_ind = 0
 
         cone_color = cones[cone_ind][COLOR_IND]
         cone_params = cones[cone_ind][PARAMS_IND]
         cone_dist = cones[cone_ind][DIST_IND]
         cone_color_priority = cones[cone_ind][PRIORITY_IND]
+        cone_name = cones[cone_ind][NAME_IND]
         X_Released = False
-        print("Targeting cone: " + cones[cone_ind][NAME_IND])
+        print("Targeting cone: " + cone_name)
     elif not rc.controller.is_down(rc.controller.Button.X):
         X_Released = True
 
@@ -374,8 +352,6 @@ def update():
     # If we could not find a contour, keep the previous angle
     if cone_center is not None:
         dist = inverse(cone_area, cone_params[0], cone_params[1])
-        # if cone_area > CONE_STOP_AREA:
-        # print(dist < cone_dist)
     if cone_center is not None and dist < cone_dist:
             speed = 0
     elif contour_center is not None:
@@ -385,18 +361,7 @@ def update():
         speed = max(MAX_SPEED - abs(error), MIN_SPEED)
     elif cone_center is None:
         speed = MIN_SPEED;
-    # print(speed)
-        
-    # if seeingCone:
-    #     a = rc.lidar.get_samples()
-    #     WHITE_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
-    #     # print(str(np.min(a[np.nonzero(a)])) + " " + str(cone_area))
-    #     # print(inverse())
-    #     # print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
-    #     print(WHITE_DATA)
-    #     print()
-    # else:
-    #     WHITE_DATA.append((0, 0))
+
     # Set the speed and angle of the RACECAR after calculations have been complete
     rc.drive.set_speed_angle(speed, angle)
 
@@ -422,23 +387,20 @@ def update_slow():
     # Print a line of ascii text denoting the contour area and x-position
     if rc.camera.get_color_image() is None:
         # If no image is found, print all X's and don't display an image
-        print("X" * 10 + " (No image) " + "X" * 10 + "Cone: " + cones[cone_ind][NAME_IND] + "\t  Speed: " + str(round(speed, 2)) + 
+        print("X" * 10 + " (No image) " + "X" * 10 + "Cone: " + cone_name + "\t  Speed: " + str(round(speed, 2)) + 
               "\tAngle " + str(round(angle, 2)))
     else:
         # If an image is found but no contour is found, print all dashes
         if contour_center is None:
-            print("-" * 32 + " : Cone: " + cones[cone_ind][NAME_IND] + "\t  Speed: " + 
-                  str(round(speed, 2)) + "\tAngle " + str(round(angle, 2)))
+            print("-" * 32 + " : Cone: " + cone_name + "\t  Speed: " + str(round(speed, 2)) + "\tAngle " + 
+                  str(round(angle, 2)))
 
         # Otherwise, print a line of dashes with a | indicating the contour x-position
         else:
             s = ["-"] * 32
             s[int(contour_center[1] / 20)] = "|"
-            print("".join(s) + " : Cone: " + cones[cone_ind][NAME_IND] + "\t  Speed: " + 
-                  str(round(speed, 2)) + "\tAngle " + str(round(angle, 2)))
-    
-    # print(BLACK_DATA)
-    # print()
+            print("".join(s) + " : Cone: " + cone_name + "\t  Speed: " + str(round(speed, 2)) + "\tAngle " + 
+                  str(round(angle, 2)))
     
 
 ########################################################################################
