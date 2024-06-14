@@ -56,6 +56,7 @@ def inverse(x, a, b):
 
 cones = [] # List of cones and their data: Yellow, Purple, Black, . Order is color, params, distance, and then priority.
 rc = racecar_core.create_racecar()
+MIN_SPEED = 0.1
 
 # >> Data
 YELLOW_DATA = [(119.09076690673828, 3605.0), (119.09076690673828, 3990.5), (106.42233276367188, 4469.5), 
@@ -78,6 +79,15 @@ BLACK_DATA = [(117.08385, 2799.5), (114.23585, 2938.0), (114.23585, 2966.0), (10
               (67.820755, 11557.0), (60.660454, 13412.0), (60.660454, 15556.5)]
 BLACK_DIST = 60
 
+ORANGE_DATA = [(114.62066, 2615.0), (120.72308, 2652.0), (120.72308, 2656.5), (120.72308, 2675.0), (126.88046, 2712.0), 
+               (126.88046, 2744.5), (129.88188, 2803.5), (129.88188, 2862.0), (129.75179, 2944.5), (129.75179, 3030.0), 
+               (122.66493, 3136.5), (122.66493, 3247.0), (114.53113, 3398.0), (114.53113, 3547.5), (114.53113, 3715.5), 
+               (112.79517, 3923.0), (112.79517, 4149.5), (104.46332, 4396.0), (104.46332, 4699.5), (99.02112, 5041.5), 
+               (99.02112, 5443.0), (90.692406, 5920.5), (90.692406, 6432.5), (90.692406, 7093.0), (84.84455, 7933.0), 
+               (84.84455, 8919.0), (75.26616, 10179.5), (75.26616, 11715.0), (64.50567, 13684.5), (64.50567, 16278.0), 
+               (64.50567, 19629.0), (54.429058, 24354.5), (54.429058, 29422.0), (44.460304, 30331.0), (44.460304, 30906.0), 
+               (34.38223, 33775.5), (34.38223, 38530.0), (34.38223, 47185.5), (22.707039, 63101.0)]
+ORANGE_DIST = 65
 # x = np.linspace(3500, 55000, 1000)
 # dists = list(zip(*BLACK_DATA))[0]
 # areas = list(zip(*BLACK_DATA))[1]
@@ -114,14 +124,16 @@ WHITE = ((0, 60, 150), (179, 70, 255)); # The HSV range for the color white
 YELLOW = ((20, 0, 50), (40, 255, 255)); # The HSV range for the color yellow
 PURPLE = ((125, 50, 50), (165, 255, 255)); # The HSV range for the color purple
 BLACK = ((0, 50, 0), (179, 255, 56))
+ORANGE = ((10, 50, 50), (20, 255, 255))
 
 # Color priority: Red >> Green >> Blue
 WHITE_COLOR_PRIORITY = (RED, GREEN, BLUE)
 YELLOW_COLOR_PRIORITY = (RED, BLUE, GREEN)
 BLACK_COLOR_PRIORITY = (GREEN, BLUE, RED)
 PURPLE_COLOR_PRIORITY = (BLUE, RED, GREEN)
+ORANGE_COLOR_PRIORITY = (BLUE, GREEN, RED)
 
-NUM_CONES = 3
+NUM_CONES = 4
 
 # Color of the cone
 cone_color = None
@@ -266,6 +278,11 @@ def start():
     dists = list(zip(*BLACK_DATA))[0]
     areas = list(zip(*BLACK_DATA))[1]
     black_params, _ = curve_fit(inverse, areas, dists)
+    # Orange
+    dists = list(zip(*ORANGE_DATA))[0]
+    areas = list(zip(*ORANGE_DATA))[1]
+    orange_params, _ = curve_fit(inverse, areas, dists)
+
 
     # >> Add parameters to cones list
     # Yellow
@@ -274,6 +291,8 @@ def start():
     cones.append(createArr(PURPLE, purple_params, PURPLE_DIST, PURPLE_COLOR_PRIORITY, "PURPLE"))
     # Black
     cones.append(createArr(BLACK, black_params, BLACK_DIST, BLACK_COLOR_PRIORITY, "BLACK"))
+    # Orange
+    cones.append(createArr(ORANGE, orange_params, ORANGE_DIST, ORANGE_COLOR_PRIORITY, "ORANGE"))
 
     # >> Set cone target parameters for default
     cone_color = cones[cone_ind][COLOR_IND]
@@ -323,7 +342,7 @@ def update():
         cone_color_priority = cones[cone_ind][PRIORITY_IND]
         X_Released = False
         print("Targeting cone: " + cones[cone_ind][NAME_IND])
-    else:
+    elif not rc.controller.is_down(rc.controller.Button.X):
         X_Released = True
 
     # Choose an angle based on contour_center
@@ -338,17 +357,18 @@ def update():
         setpoint = WIDTH // 2
         error = rc_utils.remap_range(setpoint - contour_center[1], -setpoint, setpoint, -1, 1);
         angle = kP * error
-        speed = max(MAX_SPEED - abs(error), 0.1)
+        speed = max(MAX_SPEED - abs(error), MIN_SPEED)
     elif cone_center is None:
-        speed = 0.1;
+        speed = MIN_SPEED;
     # print(speed)
         
     # if seeingCone:
-        # a = rc.lidar.get_samples()
-        # BLACK_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
-        # print(str(np.min(a[np.nonzero(a)])) + " " + str(cone_area))
-        # print(inverse())
-        # print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
+    #     a = rc.lidar.get_samples()
+    #     ORANGE_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
+    #     # print(str(np.min(a[np.nonzero(a)])) + " " + str(cone_area))
+    #     # print(inverse())
+    #     # print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
+    #     print(ORANGE_DATA)
     # Set the speed and angle of the RACECAR after calculations have been complete
     rc.drive.set_speed_angle(speed, angle)
 
