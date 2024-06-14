@@ -56,7 +56,7 @@ def inverse(x, a, b):
 
 cones = [] # List of cones and their data: Yellow, Purple, Black, . Order is color, params, distance, and then priority.
 rc = racecar_core.create_racecar()
-MIN_SPEED = 0.1
+MIN_SPEED = 0.3
 
 # >> Data
 YELLOW_DATA = [(119.09076690673828, 3605.0), (119.09076690673828, 3990.5), (106.42233276367188, 4469.5), 
@@ -69,7 +69,7 @@ YELLOW_DIST = 100
 PURPLE_DATA = [(56.41253, 23810.5), (56.41253, 26949.5), (50.14364, 28060.0), (50.14364, 28372.0), (43.4857, 28413.0), 
                (43.4857, 28905.0), (43.4857, 30518.0), (35.23148, 32656.0), (35.23148, 35724.5), (28.210056, 39571.0), 
                (28.210056, 45766.5), (21.879967, 55658.0)]
-PURPLE_DIST = 50
+PURPLE_DIST = 60
 
 BLACK_DATA = [(117.08385, 2799.5), (114.23585, 2938.0), (114.23585, 2966.0), (106.67781, 3008.5), (106.67781, 3055.0), 
               (104.67302, 3412.0), (104.67302, 3500.0), (100.96707, 3590.0), (100.96707, 3711.5), (100.96707, 3829.5), 
@@ -77,7 +77,7 @@ BLACK_DATA = [(117.08385, 2799.5), (114.23585, 2938.0), (114.23585, 2966.0), (10
               (88.301476, 4958.0), (84.95589, 5255.0), (84.95589, 5580.5), (84.95589, 5951.5), (79.08421, 6401.0), 
               (79.08421, 6928.5), (72.34155, 7548.5), (72.34155, 8228.5), (67.820755, 9021.0), (67.820755, 10079.5), 
               (67.820755, 11557.0), (60.660454, 13412.0), (60.660454, 15556.5)]
-BLACK_DIST = 60
+BLACK_DIST = 70
 
 ORANGE_DATA = [(114.62066, 2615.0), (120.72308, 2652.0), (120.72308, 2656.5), (120.72308, 2675.0), (126.88046, 2712.0), 
                (126.88046, 2744.5), (129.88188, 2803.5), (129.88188, 2862.0), (129.75179, 2944.5), (129.75179, 3030.0), 
@@ -85,12 +85,18 @@ ORANGE_DATA = [(114.62066, 2615.0), (120.72308, 2652.0), (120.72308, 2656.5), (1
                (112.79517, 3923.0), (112.79517, 4149.5), (104.46332, 4396.0), (104.46332, 4699.5), (99.02112, 5041.5), 
                (99.02112, 5443.0), (90.692406, 5920.5), (90.692406, 6432.5), (90.692406, 7093.0), (84.84455, 7933.0), 
                (84.84455, 8919.0), (75.26616, 10179.5), (75.26616, 11715.0), (64.50567, 13684.5), (64.50567, 16278.0), 
-               (64.50567, 19629.0), (54.429058, 24354.5), (54.429058, 29422.0), (44.460304, 30331.0), (44.460304, 30906.0), 
-               (34.38223, 33775.5), (34.38223, 38530.0), (34.38223, 47185.5), (22.707039, 63101.0)]
-ORANGE_DIST = 65
-# x = np.linspace(3500, 55000, 1000)
-# dists = list(zip(*BLACK_DATA))[0]
-# areas = list(zip(*BLACK_DATA))[1]
+               (64.50567, 19629.0)]
+ORANGE_DIST = 80
+
+PINK_DATA = [
+             (109.04715, 2769.5), (109.04715, 3019.0), (116.435936, 3392.5), (110.74535, 3853.0), (110.74535, 4264.5), 
+             (100.01456, 4716.0), (100.01456, 5240.5), (90.04938, 5855.5), (90.04938, 6639.0), (80.79254, 7506.5), 
+             (80.79254, 8639.5), (72.09478, 10147.5), (72.09478, 12535.0), (61.814377, 14981.0), (61.814377, 18304.5), 
+             (61.814377, 22997.0)]
+PINK_DIST = 90
+# x = np.linspace(2000, 55000, 1000)
+# dists = list(zip(*PINK_DATA))[0]
+# areas = list(zip(*PINK_DATA))[1]
 # params, covar = curve_fit(inverse, areas, dists)
 # # y = params[0] * np.arctan(params[1] * x + params[2]) + params[3]
 # y = params[0] / x + params[1]
@@ -109,7 +115,7 @@ kP = -1
 MAX_SPEED = 1
 
 # A crop window for the floor directly in front of the car
-CROP_FLOOR = ((360, 0), (HEIGHT, WIDTH))
+CROP_FLOOR = ((330, 0), (HEIGHT - 30, WIDTH))
 
 # A crop window for the center of the screen, for the cone
 kHeight = 0.25
@@ -119,21 +125,23 @@ CROP_CONE = ((HEIGHT // 2 - int(kHeight * HEIGHT), WIDTH // 2 - int(kWidth * WID
 
 BLUE = ((80, 150, 50), (125, 255, 255)) # The HSV range for the color blue
 GREEN = ((40, 50, 50), (80, 255, 255))  # The HSV range for the color green
-RED = ((165, 50, 50), (10, 255, 255))  # The HSV range for the color red
+RED = ((0, 210, 210), (10, 255, 255))  # The HSV range for the color red
 WHITE = ((0, 60, 150), (179, 70, 255)); # The HSV range for the color white
 YELLOW = ((20, 0, 50), (40, 255, 255)); # The HSV range for the color yellow
 PURPLE = ((125, 50, 50), (165, 255, 255)); # The HSV range for the color purple
 BLACK = ((0, 50, 0), (179, 255, 56))
 ORANGE = ((10, 50, 50), (20, 255, 255))
+PINK = ((90, 170, 150), (179, 230, 255))
 
 # Color priority: Red >> Green >> Blue
 WHITE_COLOR_PRIORITY = (RED, GREEN, BLUE)
 YELLOW_COLOR_PRIORITY = (RED, BLUE, GREEN)
-BLACK_COLOR_PRIORITY = (GREEN, BLUE, RED)
+BLACK_COLOR_PRIORITY = (GREEN, RED, BLUE)
 PURPLE_COLOR_PRIORITY = (BLUE, RED, GREEN)
 ORANGE_COLOR_PRIORITY = (BLUE, GREEN, RED)
+PINK_COLOR_PRIORITY = (GREEN, BLUE, RED)
 
-NUM_CONES = 4
+NUM_CONES = 5
 
 # Color of the cone
 cone_color = None
@@ -213,6 +221,7 @@ def update_contour():
             rc_utils.draw_circle(image, center)
             cone_area = rc_utils.get_contour_area(cone_contour)
             cone_center = rc_utils.get_contour_center(cone_contour)
+            # print("c: " + str(hsv[cone_center[0]][cone_center[1]]))
             seeingCone = True;
         else:
             cone_center = None
@@ -221,8 +230,8 @@ def update_contour():
             # print(cone_area)
             # print(hsv[center[0]][center[1]])
 
-        # row = 410
-        # col = 130
+        # row = 350
+        # col = 170
         # hsvimg = np.zeros((300, 300, 3), np.uint8)
         # hsvimg[:] = hsv[row][col]
         # BGRimg = cv.cvtColor(hsvimg, cv.COLOR_HSV2BGR)
@@ -282,6 +291,10 @@ def start():
     dists = list(zip(*ORANGE_DATA))[0]
     areas = list(zip(*ORANGE_DATA))[1]
     orange_params, _ = curve_fit(inverse, areas, dists)
+    # Pink
+    dists = list(zip(*PINK_DATA))[0]
+    areas = list(zip(*PINK_DATA))[1]
+    pink_params, _ = curve_fit(inverse, areas, dists)
 
 
     # >> Add parameters to cones list
@@ -293,6 +306,8 @@ def start():
     cones.append(createArr(BLACK, black_params, BLACK_DIST, BLACK_COLOR_PRIORITY, "BLACK"))
     # Orange
     cones.append(createArr(ORANGE, orange_params, ORANGE_DIST, ORANGE_COLOR_PRIORITY, "ORANGE"))
+    # Orange
+    cones.append(createArr(PINK, pink_params, PINK_DIST, PINK_COLOR_PRIORITY, "PINK"))
 
     # >> Set cone target parameters for default
     cone_color = cones[cone_ind][COLOR_IND]
@@ -364,11 +379,11 @@ def update():
         
     # if seeingCone:
     #     a = rc.lidar.get_samples()
-    #     ORANGE_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
+    #     PINK_DATA.append((np.min(a[np.nonzero(a)]), cone_area))
     #     # print(str(np.min(a[np.nonzero(a)])) + " " + str(cone_area))
     #     # print(inverse())
     #     # print(f"Distance: {round(rc.lidar.get_samples()[0].item(), 2)} Area: {round(cone_area, 2)}")
-    #     print(ORANGE_DATA)
+    #     print(PINK_DATA)
     # Set the speed and angle of the RACECAR after calculations have been complete
     rc.drive.set_speed_angle(speed, angle)
 
