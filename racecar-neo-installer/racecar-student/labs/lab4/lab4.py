@@ -258,7 +258,6 @@ def start():
     global cone_params
     global cone_name
     global cones
-    # global t1
 
     # Ignore all warnings
     warnings.filterwarnings("ignore")
@@ -316,13 +315,6 @@ def start():
     cone_dist = cones[cone_ind][DIST_IND]
     cone_color_priority = cones[cone_ind][PRIORITY_IND]
     cone_name = cones[cone_ind][NAME_IND]
-
-
-    plt.plot(times, last_readings)
-    plt.ion()
-    plt.show()
-
-    # t1 = threading.Thread(target = show_graph, args = (times, last_readings))
 
     # Print start message
     print(
@@ -392,9 +384,6 @@ def update():
         speed = max(MAX_SPEED - abs(error), MIN_SPEED)
         last_readings.append(contour_center[1])
         times.append(times[-1] + time)
-        plt.plot(times, last_readings, label = "Position")
-        plt.plot(times, [setpoint for _ in range(len(times))], label = "Setpoint")
-        plt.draw()
     elif cone_center is None:
         speed = MIN_SPEED;
 
