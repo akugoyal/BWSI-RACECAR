@@ -39,6 +39,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import warnings
+import threading
 
 # If this file is nested inside a folder in the labs folder, the relative path should
 # be [1, ../../library] instead.
@@ -52,6 +53,12 @@ import racecar_utils as rc_utils
 rc = racecar_core.create_racecar()
 
 # >> Variables
+# Used for the PID controller
+# t1 = None
+integral = 0
+last_readings = [0]
+times = [0]
+
 cones = [] # List of cones and their data. Order is color, params, distance, line color priority, and then name.
 
 # Information about the current target cone. Gets updated if the target changes.
@@ -69,13 +76,15 @@ angle = 0.0  # The current angle of the car's wheels
 # Used for keeping track of the line and cone contours detected in the image.
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
-cone_center = None;
-cone_area = 0;
+cone_center = None
+cone_area = 0
 
 # >> Constants
-# Bounds for the racecar speed
+# Bounds for the racecar speed and angle
 MIN_SPEED = 0.3
 MAX_SPEED = 1
+MIN_ANGLE = -1
+MAX_ANGLE = 1
 
 # The smallest contour we will recognize as a valid contour
 MIN_LINE_CONTOUR_AREA = 75
@@ -87,6 +96,8 @@ WIDTH = rc.camera.get_width()
 
 # Gains for the P controller
 kP = -1
+kI = 0
+kD = 0
 
 BLUE = ((80, 150, 50), (125, 255, 255)) # The HSV range for the color blue
 GREEN = ((40, 50, 50), (80, 255, 255))  # The HSV range for the color green
@@ -162,6 +173,10 @@ WHITE_DIST = 70
 ########################################################################################
 # Functions
 ########################################################################################
+
+# def show_graph(x_data, y_data):
+#     plt.plot(x_data, y_data)
+#     plt.show()
 
 # [FUNCTION] The inverse function computes a / x + b based on the given parameters. 
 # Used for calculating the area-distance regressions.
@@ -243,6 +258,7 @@ def start():
     global cone_params
     global cone_name
     global cones
+    # global t1
 
     # Ignore all warnings
     warnings.filterwarnings("ignore")
@@ -301,6 +317,13 @@ def start():
     cone_color_priority = cones[cone_ind][PRIORITY_IND]
     cone_name = cones[cone_ind][NAME_IND]
 
+
+    plt.plot(times, last_readings)
+    plt.ion()
+    plt.show()
+
+    # t1 = threading.Thread(target = show_graph, args = (times, last_readings))
+
     # Print start message
     print(
         ">> Lab 4 - Line Follower\n"
@@ -329,6 +352,9 @@ def update():
     global cone_color_priority
     global X_Released
     global cone_name
+    global integral
+    global last_readings
+    global times
 
     # Search for contours in the current color image
     update_contour()
@@ -357,8 +383,18 @@ def update():
     elif contour_center is not None:
         setpoint = WIDTH // 2
         error = rc_utils.remap_range(setpoint - contour_center[1], -setpoint, setpoint, -1, 1);
-        angle = kP * error
+
+        time = rc.get_delta_time()
+        integral += error * time
+        deriv = (contour_center[1] - last_readings[-1]) / time
+        angle = kP * error + kI * integral + kD * deriv
+        angle = rc_utils.clamp(angle, MIN_ANGLE, MAX_ANGLE)
         speed = max(MAX_SPEED - abs(error), MIN_SPEED)
+        last_readings.append(contour_center[1])
+        times.append(times[-1] + time)
+        plt.plot(times, last_readings, label = "Position")
+        plt.plot(times, [setpoint for _ in range(len(times))], label = "Setpoint")
+        plt.draw()
     elif cone_center is None:
         speed = MIN_SPEED;
 
