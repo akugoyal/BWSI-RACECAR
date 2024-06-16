@@ -94,7 +94,7 @@ MIN_CONE_CONTOUR_AREA = 1500
 HEIGHT = rc.camera.get_height()
 WIDTH = rc.camera.get_width()
 
-# Gains for the P controller
+# Gains for the PID controller
 kP = -1
 kI = 0
 kD = 0
