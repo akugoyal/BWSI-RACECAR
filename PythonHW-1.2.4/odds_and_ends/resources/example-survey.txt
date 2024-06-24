@@ -1,0 +1,6 @@
+cake: dessert
+kale: vegetable
+carrots: vegetable
+pears: fruit
+peaches: fruit
+peaches: fruit
