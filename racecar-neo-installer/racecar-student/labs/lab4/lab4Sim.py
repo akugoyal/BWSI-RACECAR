@@ -39,25 +39,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import warnings
+import time
 
 # If this file is nested inside a folder in the labs folder, the relative path should
 # be [1, ../../library] instead.
 sys.path.insert(1, "../../library")
+# sys.path.insert(2, "/Users/akulgoyal/anaconda3/envs/racecar/lib/python3.9/site-packages") # FIX
+# from pyinstrument import Profiler
 import racecar_core
 import racecar_utils as rc_utils
 
 ########################################################################################
 # Global variables
 ########################################################################################
-rc = racecar_core.create_racecar()
+# t1 = time.time()
+# profiler = Profiler()
+# profiler.start()
+rc = racecar_core.create_racecar(True)
+# profiler.stop()
+# profiler.print()
+# print(time.time() - t1)
 
 # >> Variables
 # Used for the PID controller
 # t1 = None
+camera_frames = []
 integral = 0
 last_readings = []
 last_error = []
 times = []
+ilc_data = []
 
 cones = [] # List of cones and their data. Order is color, params, distance, line color priority, and then name.
 
@@ -83,32 +94,31 @@ cone_area = 0
 # >> Constants
 # Bounds for the racecar speed and angle
 MIN_SPEED = 0.15
-MAX_SPEED = 0.14 #TRY 0.14
-MIN_ANGLE = -0.25
-MAX_ANGLE = 0.25
+MAX_SPEED = 0.5
+MIN_ANGLE = -1#-0.25
+MAX_ANGLE = 1#0.25
 
 # The smallest contour we will recognize as a valid contour
-MIN_LINE_CONTOUR_AREA = 1000
+MIN_LINE_CONTOUR_AREA = 200
 MIN_CONE_CONTOUR_AREA = 1500
+
+CAMERA_FRAMES_LAG = 5
 
 # Height and width of the image from the color camera
 HEIGHT = rc.camera.get_height()
 WIDTH = rc.camera.get_width()
 
 # PID controller configurations
+# IRL = Speed: 0.12, kP: -0.55, kD: -0.12
 DERIV_METHOD = 1        #0 for last point, 1 for five point stencil
-INTEGRAL_WINDOW = 8     #0 to disable
-
-#MOST STABLE RIGHT NOW - KP = 0.0003, KD = 0.00055
-kP = -0.00030 #speed 0.12, kp - 0.55, kd -0.12 #TRY 0.00045
-kI = 0
-kD = -0.00055 #TRY 0.00014
-GREEN_THRESH = 100
+INTEGRAL_WINDOW = 0     #0 to disable
+kP = -0.010#-0.00055 
+kI = -0.01
+kD = -0.1
 
 
 BLUE = ((90, 41, 180), (109, 255, 255)) # The HSV range for the color blue
-GREEN = ((41, 39, 149), (75, 255, 255))  # The HSV range for the color green
-# GREEN = ((25, 100, 21), (30, 255, 255))
+GREEN = ((41, 40, 148), (75, 255, 255))  # The HSV range for the color green
 RED = ((170, 29, 180), (15, 255, 255))  # The HSV range for the color red
 WHITE = ((0, 60, 150), (179, 70, 255)) # The HSV range for the color white
 YELLOW = ((20, 0, 50), (40, 255, 255)) # The HSV range for the color yellow
@@ -122,7 +132,7 @@ CROP_FLOOR = ((330, 0), (HEIGHT - 30, WIDTH))
 
 # Line color priorities
 WHITE_COLOR_PRIORITY = (RED, GREEN, BLUE)
-YELLOW_COLOR_PRIORITY = (GREEN, RED, ORANGE, BLUE)
+YELLOW_COLOR_PRIORITY = (RED, BLUE, GREEN)
 BLACK_COLOR_PRIORITY = (GREEN, RED, BLUE)
 PURPLE_COLOR_PRIORITY = (BLUE, RED, GREEN)
 ORANGE_COLOR_PRIORITY = (BLUE, GREEN, RED)
@@ -130,8 +140,6 @@ PINK_COLOR_PRIORITY = (GREEN, BLUE, RED)
 BLUE_SEEN = False
 GREEN_SEEN = False
 green_timer = 0.0
-counter = 0;
-END = False
 
 # Constants for storing information about the cones
 NUM_CONES = 6
@@ -186,6 +194,19 @@ WHITE_DIST = 70
 ########################################################################################
 # Functions
 ########################################################################################
+def get_camera_image():
+    global camera_frames
+    if len(camera_frames) < CAMERA_FRAMES_LAG:
+        return None
+    
+    return camera_frames[0]
+
+def update_camera_frames():
+    global camera_frames
+    if len(camera_frames) >= CAMERA_FRAMES_LAG:
+        camera_frames.pop(0)
+    camera_frames.append(rc.camera.get_color_image())
+
 
 def show_graph(x_data, y_data):
     plt.plot(x_data, y_data)
@@ -226,42 +247,27 @@ def update_contour():
     global cone_center
     global cone_area
     global BLUE_SEEN
-    global counter
     global GREEN_SEEN
 
-    image = rc.camera.get_color_image()
+    image = get_camera_image()
+    # image = rc.camera.get_color_image()
 
     if image is None:
         contour_area = 0
         contour_center = None
     else:
          # Find the contour of the line and update contour_center and contour_area
-         #Green
         cropped_image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
         contours = rc_utils.find_contours(cropped_image, cone_color_priority[0][0], cone_color_priority[0][1])
         line_contour = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
 
         if line_contour is None:
-            #RED
-            if (not BLUE_SEEN):
-                contours = rc_utils.find_contours(cropped_image, cone_color_priority[1][0], cone_color_priority[1][1])
-                line_contour = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
+            contours = rc_utils.find_contours(cropped_image, cone_color_priority[1][0], cone_color_priority[1][1])
+            line_contour = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
 
             if line_contour is None:
-                #ORANGE
                 contours = rc_utils.find_contours(cropped_image, cone_color_priority[2][0], cone_color_priority[2][1])
                 line_contour = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
-
-                if line_contour is None:
-                    # print("BLUE :DDD")
-                    contours = rc_utils.find_contours(cropped_image, cone_color_priority[3][0], cone_color_priority[3][1])
-                    line_contour = rc_utils.get_largest_contour(contours, MIN_LINE_CONTOUR_AREA)
-                
-                if line_contour is not None:
-                    BLUE_SEEN = True
-        else:
-            GREEN_SEEN = True
-            counter += 1
 
         # Find cone contour
         # contours = rc_utils.find_contours(image, cone_color[0], cone_color[1])
@@ -408,7 +414,6 @@ def update():
     global angle
     global kP
     global cone_ind
-    global counter
     global cone_color
     global cone_params
     global cone_dist
@@ -423,11 +428,11 @@ def update():
     global kD
     global kI
     global green_timer
-    global CROP_FLOOR
     global GREEN_SEEN
-    global END
+
     # Search for contours in the current color image
     update_contour()
+    update_camera_frames()
 
     # print(GREEN_SEEN)
     # print(green_timer)
@@ -467,12 +472,10 @@ def update():
 
         integral = integral + error * time if INTEGRAL_WINDOW == 0 else calcIntegral(times, last_error)
         deriv = calcDeriv(error, time)
-        # print(kP * error)
-        print("D: " + str(deriv))
 
         # print(error)
         angle = kP * error + kI * integral + kD * deriv
-        angle = rc_utils.clamp(angle, MIN_ANGLE, MAX_ANGLE) + 0.02
+        angle = rc_utils.clamp(angle, MIN_ANGLE, MAX_ANGLE) #+ 0.02
 
         speed = MAX_SPEED#max(MAX_SPEED - abs(error), MIN_SPEED)
 
@@ -481,23 +484,14 @@ def update():
         if (len(last_error) > INTEGRAL_WINDOW):
             last_error.pop(0)
 
-        # CROP_FLOOR = ((330, 0), (HEIGHT - 30, WIDTH))
-        # print(counter)
-        # print(GREEN_SEEN)
-        # print(error)
-        if not END and GREEN_SEEN and abs(error) >= GREEN_THRESH:
-            speed = 0.13
-            # if (green_timer < 1.5):
-            #     speed = -1
-            print("Yoinking green" + str(error))
-            # CROP_FLOOR = ((330, 0), (HEIGHT - 30, 200))
-            # if (abs(error) < GREEN_THRESH):
-            #     green_timer += 10
-            # green_timer += time
+        if GREEN_SEEN and green_timer < 2.0:
+            print("YIPPEE")
+            green_timer += time
             angle = -0.25
         
-        
         times.append(times[-1] + time if len(times) > 0 else time)
+        ilc_data.append((angle, error, contour_area))
+        # print(str(angle) + " " +str(error) + " " +str(contour_area))
 
         # Plot position
         # print(str(len(times)) + " " + str(len(last_readings)))
@@ -506,8 +500,6 @@ def update():
         # plt.draw()
     # elif cone_center is None:
     #     speed = MIN_SPEED
-    elif GREEN_SEEN and not END:
-        END = True
     
     # Set the speed and angle of the RACECAR after calculations have been complete
     rc.drive.set_speed_angle(speed, angle)
@@ -532,7 +524,7 @@ def update_slow():
     than update().  By default, update_slow() is run once per second
     """
     # Print a line of ascii text denoting the contour area and x-position
-    if rc.camera.get_color_image() is None:
+    if get_camera_image() is None:
         # If no image is found, print all X's and don't display an image
         print("X" * 10 + " (No image) " + "X" * 10 + "Cone: " + cone_name + "\t  Speed: " + str(round(speed, 2)) + 
               "\tAngle " + str(round(angle, 2)))
