@@ -39,17 +39,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import warnings
+import time
 
 # If this file is nested inside a folder in the labs folder, the relative path should
 # be [1, ../../library] instead.
 sys.path.insert(1, "../../library")
+sys.path.insert(2, "/Users/akulgoyal/anaconda3/envs/racecar/lib/python3.9/site-packages") # FIX
+from pyinstrument import Profiler
 import racecar_core
 import racecar_utils as rc_utils
 
 ########################################################################################
 # Global variables
 ########################################################################################
+t1 = time.time()
+profiler = Profiler()
+profiler.start()
 rc = racecar_core.create_racecar()
+profiler.stop()
+profiler.print()
+print(time.time() - t1)
 
 # >> Variables
 # Used for the PID controller
@@ -83,7 +92,7 @@ cone_area = 0
 # >> Constants
 # Bounds for the racecar speed and angle
 MIN_SPEED = 0.15
-MAX_SPEED = 0.13
+MAX_SPEED = 1
 MIN_ANGLE = -0.25
 MAX_ANGLE = 0.25
 
@@ -96,11 +105,12 @@ HEIGHT = rc.camera.get_height()
 WIDTH = rc.camera.get_width()
 
 # PID controller configurations
+# IRL = Speed: 0.12, kP: -0.55, kD: -0.12
 DERIV_METHOD = 1        #0 for last point, 1 for five point stencil
 INTEGRAL_WINDOW = 0     #0 to disable
-kP = -0.00055 #speed 0.12, kp - 0.55, kd -0.12
+kP = 0.00055 
 kI = 0
-kD = -0.00012
+kD = 0#.00012
 
 
 BLUE = ((90, 41, 180), (109, 255, 255)) # The HSV range for the color blue
@@ -118,7 +128,8 @@ CROP_FLOOR = ((330, 0), (HEIGHT - 30, WIDTH))
 
 # Line color priorities
 WHITE_COLOR_PRIORITY = (RED, GREEN, BLUE)
-YELLOW_COLOR_PRIORITY = (GREEN, RED, ORANGE, BLUE)
+# YELLOW_COLOR_PRIORITY = (GREEN, RED, ORANGE, BLUE)
+YELLOW_COLOR_PRIORITY = (PURPLE, PURPLE, PURPLE, PURPLE)
 BLACK_COLOR_PRIORITY = (GREEN, RED, BLUE)
 PURPLE_COLOR_PRIORITY = (BLUE, RED, GREEN)
 ORANGE_COLOR_PRIORITY = (BLUE, GREEN, RED)

@@ -39,17 +39,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import warnings
+import time
 
 # If this file is nested inside a folder in the labs folder, the relative path should
 # be [1, ../../library] instead.
 sys.path.insert(1, "../../library")
+sys.path.insert(2, "/Users/akulgoyal/anaconda3/envs/racecar/lib/python3.9/site-packages")
+from pyinstrument import Profiler
 import racecar_core
 import racecar_utils as rc_utils
 
 ########################################################################################
 # Global variables
 ########################################################################################
-rc = racecar_core.create_racecar()
+t1 = time.time()
+profiler = Profiler()
+profiler.start()
+rc = racecar_core.create_racecar(True)
+profiler.stop()
+profiler.print()
+print(time.time() - t1)
 
 # >> Variables
 # Used for the PID controller
