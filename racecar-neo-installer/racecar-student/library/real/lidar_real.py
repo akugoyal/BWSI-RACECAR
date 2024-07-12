@@ -19,8 +19,6 @@ from nptyping import NDArray
 import rclpy as ros2
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
-from cv_bridge import CvBridge, CvBridgeError
-import threading
 
 
 class LidarReal(Lidar):
@@ -41,10 +39,11 @@ class LidarReal(Lidar):
         self.__samples_new = np.empty(0)
 
     # LIDAR Scan returns value in meters, multiplying by 100 to be processed in cm
-    # LIDAR Scan reversed, flipping order of data entry to correct for CW spin
+    # LIDAR Scan reversed, flipping order of data entry to correct for CW spin - matches with sim
+    # LIDAR Scan array roll 252 elements to the right (180) to match sim reference plane (0 deg - forward)
     def __scan_callback(self, data):
-        self.__samples_new = np.flip(np.multiply(np.array(data.ranges), 100))
-        
+        self.__samples_new = np.roll(np.flip(np.multiply(np.array(data.ranges), 100)), 252)
+
     def __update(self):
         self.__samples = self.__samples_new
 

@@ -6,7 +6,7 @@ racecar() {
     echo "Error: unable to find your local .config file.  Please make sure that you setup the racecar tool correctly."
     echo "Go to \"https://mitll-racecar-mn.readthedocs.io/en/latest/gettingStarted/computerSetup.html\" for setup instructions."
   else
-    local RACECAR_DESTINATION_PATH="/home/racecar/Documents/${RACECAR_TEAM}"
+    local RACECAR_DESTINATION_PATH="/home/racecar/jupyter_ws/${RACECAR_TEAM}"
     if [ $# -eq 1 ] && [ "$1" = "cd" ]; then
       cd "$RACECAR_ABSOLUTE_PATH"/labs || return
     elif [ $# -eq 1 ] && [ "$1" = "connect" ]; then

@@ -13,7 +13,6 @@ from controller import Controller
 
 # General
 import copy
-from typing import Tuple
 
 # ROS2
 import rclpy as ros2
@@ -91,9 +90,13 @@ class ControllerReal(Controller):
         )
 
     def is_down(self, button: Controller.Button) -> bool:
+        if (button.value == Controller.Button.RB):
+            return True
         return self.__is_down[button.value]
 
     def was_pressed(self, button: Controller.Button) -> bool:
+        if (button.value == Controller.Button.RB):
+            return True
         return self.__is_down[button.value] and not self.__was_down[button.value]
 
     def was_released(self, button: Controller.Button) -> bool:
@@ -102,7 +105,7 @@ class ControllerReal(Controller):
     def get_trigger(self, trigger: Controller.Trigger) -> float:
         return self.__last_trigger[trigger.value]
 
-    def get_joystick(self, joystick: Controller.Joystick) -> Tuple[float, float]:
+    def get_joystick(self, joystick: Controller.Joystick) -> tuple[float, float]:
         return self.__last_joystick[joystick.value]
 
     def __controller_callback(self, message):
@@ -153,6 +156,8 @@ class ControllerReal(Controller):
         self.__is_down = copy.deepcopy(self.__cur_down)
         self.__last_trigger = copy.deepcopy(self.__cur_trigger)
         self.__last_joystick = copy.deepcopy(self.__cur_joystick)
+        self.__was_down[Controller.Button.RB] = True
+        self.__is_down[Controller.Button.RB] = True
 
     def __convert_trigger_value(self, value: float) -> float:
         """
@@ -166,13 +171,13 @@ class ControllerReal(Controller):
             return 0
         return value
 
-    def __convert_joystick_values(self, x: float, y: float) -> Tuple[float, float]:
+    def __convert_joystick_values(self, x: float, y: float) -> tuple[float, float]:
         """
         Converts a received joystick axis value into the desired range.
 
         Args:
-            x: The value of the joystick x axis provided in the ROS message.
-            y: The value of the joystick y axis provided in the ROS message.
+            x: The value of the joystick x-axis provided in the ROS message.
+            y: The value of the joystick y-axis provided in the ROS message.
         """
         x = -x
 
@@ -181,4 +186,4 @@ class ControllerReal(Controller):
         if abs(y) < self.__JOYSTICK_DEAD_ZONE:
             y = 0
 
-        return (x, y)
+        return x, y

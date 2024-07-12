@@ -39,7 +39,7 @@ class CameraReal(Camera):
         # ROS node
         self.node = ros2.create_node("image_sub")
 
-        qos_profile = QoSProfile(depth=1)
+        qos_profile = QoSProfile(depth=10)
         qos_profile.history = QoSHistoryPolicy.KEEP_LAST
         qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT
         qos_profile.durability = QoSDurabilityPolicy.VOLATILE
@@ -62,7 +62,7 @@ class CameraReal(Camera):
 
     def __color_callback(self, data):
         try:
-            np_arr = np.frombuffer(data.data, np.uint8) # decode jpeg image type
+            np_arr = np.frombuffer(data.data, np.uint8)  # decode jpeg image type
             cv_color_image = cv.imdecode(np_arr, cv.IMREAD_COLOR)
         except CvBridgeError as e:
             print(e)

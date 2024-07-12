@@ -39,7 +39,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import warnings
-import threading
 
 # If this file is nested inside a folder in the labs folder, the relative path should
 # be [1, ../../library] instead.
@@ -56,8 +55,9 @@ rc = racecar_core.create_racecar()
 # Used for the PID controller
 # t1 = None
 integral = 0
-last_readings = [0]
-times = [0]
+last_readings = []
+last_error = []
+times = []
 
 cones = [] # List of cones and their data. Order is color, params, distance, line color priority, and then name.
 
@@ -94,8 +94,10 @@ MIN_CONE_CONTOUR_AREA = 1500
 HEIGHT = rc.camera.get_height()
 WIDTH = rc.camera.get_width()
 
-# Gains for the PID controller
-kP = -1
+# PID controller configurations
+DERIV_METHOD = 0        #0 for last point, 1 for five point stencil
+INTEGRAL_WINDOW = 0     #0 to disable
+kP = -1.0 / 320.0 
 kI = 0
 kD = 0
 
@@ -174,14 +176,36 @@ WHITE_DIST = 70
 # Functions
 ########################################################################################
 
-# def show_graph(x_data, y_data):
-#     plt.plot(x_data, y_data)
-#     plt.show()
+def show_graph(x_data, y_data):
+    plt.plot(x_data, y_data)
+    plt.show()
 
 # [FUNCTION] The inverse function computes a / x + b based on the given parameters. 
 # Used for calculating the area-distance regressions.
 def inverse(x, a, b):
     return a / x + b
+
+def calcIntegral(time, last_error):
+    if len(time) >= (1 + len(last_error)):
+        integralAcc = 0
+        for i in reversed(range(len(last_error))):
+            integralAcc += (time[i] - time[i - 1]) * last_error[i]
+    return 0
+
+def calcDeriv(error, time):
+    global last_error
+    if DERIV_METHOD == 0:
+        if len(last_readings) < 2:
+            return 0
+        else:
+            return (contour_center[1] - last_readings[-1]) / time 
+    elif DERIV_METHOD == 1:
+        if len(last_error >= 4):
+            return (-error + 8 * last_error[-1] - 8 * last_error[-3] + last_error[-4]) / 12.0
+        else:
+            return 0
+    
+    return 0
 
 # [FUNCTION] Finds contours in the current color image and uses them to update 
 # contour_center and contour_area
@@ -222,7 +246,7 @@ def update_contour():
             rc_utils.draw_circle(cropped_image, contour_center)
         else:
             contour_area = 0
-            contour_center = None;
+            contour_center = None
         
         # Find the contour of the cone and draw its center
         if cone_contour is not None:
@@ -235,6 +259,17 @@ def update_contour():
             cone_center = None
             cone_area = 0
 
+        # hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+        # row = 410
+        # col = 130
+        # hsvimg = np.zeros((300, 300, 3), np.uint8)
+        # hsvimg[:] = hsv[row][col]
+        # BGRimg = cv.cvtColor(hsvimg, cv.COLOR_HSV2BGR)
+        # # rc_utils.draw_circle(image, (x, y))
+        # cv.circle(image, (col, row), 1, (30, 255, 255), 1)
+        # cv.namedWindow("Color", cv.WINDOW_NORMAL)
+        # cv.imshow("Color", BGRimg)
+        # print(hsv[row][col])
         rc.display.show_color_image(image)
 
 # [FUNCTION] Utility function to create a list based on the provided information and 
@@ -316,6 +351,12 @@ def start():
     cone_color_priority = cones[cone_ind][PRIORITY_IND]
     cone_name = cones[cone_ind][NAME_IND]
 
+    plt.plot(times, last_readings)
+    plt.plot([0], [650])
+    plt.plot([0], [0])
+    plt.ion()
+    plt.show()
+
     # Print start message
     print(
         ">> Lab 4 - Line Follower\n"
@@ -347,6 +388,7 @@ def update():
     global integral
     global last_readings
     global times
+    global last_error
 
     # Search for contours in the current color image
     update_contour()
@@ -374,19 +416,32 @@ def update():
             speed = 0
     elif contour_center is not None:
         setpoint = WIDTH // 2
-        error = rc_utils.remap_range(setpoint - contour_center[1], -setpoint, setpoint, -1, 1);
-
+        error = setpoint - contour_center[1]
         time = rc.get_delta_time()
-        integral += error * time
-        deriv = (contour_center[1] - last_readings[-1]) / time
+
+        integral = integral + error * time if INTEGRAL_WINDOW == 0 else calcIntegral(times, last_error)
+        deriv = calcDeriv(error, time)
+
         angle = kP * error + kI * integral + kD * deriv
         angle = rc_utils.clamp(angle, MIN_ANGLE, MAX_ANGLE)
-        speed = max(MAX_SPEED - abs(error), MIN_SPEED)
-        last_readings.append(contour_center[1])
-        times.append(times[-1] + time)
-    elif cone_center is None:
-        speed = MIN_SPEED;
 
+        speed = max(MAX_SPEED - abs(error), MIN_SPEED)
+
+        last_readings.append(contour_center[1])
+        last_error.append(error)
+        if (len(last_error) > INTEGRAL_WINDOW):
+            last_error.pop(0)
+        
+        times.append(times[-1] + time if len(times) > 0 else time)
+
+        # Plot position
+        # print(str(len(times)) + " " + str(len(last_readings)))
+        plt.plot(times, last_readings, label = "Position")
+        plt.plot(times, [setpoint for _ in range(len(times))], label = "Setpoint")
+        plt.draw()
+    elif cone_center is None:
+        speed = MIN_SPEED
+    
     # Set the speed and angle of the RACECAR after calculations have been complete
     rc.drive.set_speed_angle(speed, angle)
 
