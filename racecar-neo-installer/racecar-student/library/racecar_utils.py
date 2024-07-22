@@ -601,7 +601,7 @@ def get_contour_area(contour: NDArray) -> float:
 
 def pixelate_image(
     img: NDArray[np.uint8],
-    size: [int, int] = (24, 8)
+    size: list[int, int] = (24, 8)
 ) -> NDArray[np.uint8]:
     """
     "Pixelates" and resizes a grayscale image to a smaller size, useful for
@@ -920,8 +920,11 @@ def get_lidar_closest_point(
 
     # Otherwise, use the same approach but for one continuous piece
     samples = (scan[first_sample : last_sample + 1] - 0.01) % 1000000
-    min_index = np.argmin(samples)
-    return (first_sample + min_index) * 360 / scan.shape[0], samples[min_index]
+    if len(samples) > 0:
+        min_index = np.argmin(samples)
+        return (first_sample + min_index) * 360 / scan.shape[0], samples[min_index]
+    else:
+        return -1, -1
 
 
 def get_lidar_average_distance(
@@ -1183,11 +1186,17 @@ def get_ar_markers(
             print(markers[0])
     """
     # Use ArUco to find the raw corner and id information
-    corners, ids, _ = cv.aruco.detectMarkers(
-        color_image,
-        cv.aruco.Dictionary_get(cv.aruco.DICT_6X6_250),
-        parameters=cv.aruco.DetectorParameters_create(),
-    )
+    # corners, ids, _ = cv.aruco.detectMarkers(
+    #     color_image,
+    #     cv.aruco.Dictionary_get(cv.aruco.DICT_6X6_250),
+    #     parameters=cv.aruco.DetectorParameters_create(),
+    # )
+    dictionary = cv.aruco.getPredefinedDictionary(cv.aruco.DICT_5X5_250)
+    params = cv.aruco.DetectorParameters()
+    detector = cv.aruco.ArucoDetector(dictionary, params)
+    if color_image is None:
+        return
+    corners, ids, _ = detector.detectMarkers(color_image)
 
     # Create an ARMarker object for each detected marker
     markers: List[ARMarker] = []
