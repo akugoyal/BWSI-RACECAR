@@ -36,21 +36,46 @@ running through the race in "race mode" to do the full course. Lowest time wins!
 import sys
 import cv2 as cv
 import numpy as np
+import csv
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import warnings
+import time
+import random as rand
 
 # If this file is nested inside a folder in the labs folder, the relative path should
 # be [1, ../../library] instead.
-sys.path.insert(1, "../../library")
+sys.path.insert(1, "../library")
 import racecar_core
 import racecar_utils as rc_utils
+from pyinstrument import Profiler
+import dot_matrix_handler
 
 ########################################################################################
 # Global variables
 ########################################################################################
+# t1 = time.time()
+# profiler = Profiler()
+# profiler.start()
 rc = racecar_core.create_racecar()
+# profiler.stop()
+# profiler.print()
+# print(time.time() - t1)
 
+countdown_time = 0
+blowout_detected = False
+
+currentTime=0
+xAng=[]
+yAng=[]
+zAng=[]
+xAccel=[]
+yAccel=[]
+zAccel=[]
+time=[]
+tireFellTime=0
+start=0
+record=True
 # >> Variables
 # Used for the PID controller
 # t1 = None
@@ -81,11 +106,6 @@ cone_center = None
 cone_area = 0
 
 # >> Constants
-# Bounds for the racecar speed and angle
-MIN_SPEED = 0.15
-MAX_SPEED = 0.14 #TRY 0.14
-MIN_ANGLE = -0.25
-MAX_ANGLE = 0.25
 
 # The smallest contour we will recognize as a valid contour
 MIN_LINE_CONTOUR_AREA = 1000
@@ -99,10 +119,55 @@ WIDTH = rc.camera.get_width()
 DERIV_METHOD = 1        #0 for last point, 1 for five point stencil
 INTEGRAL_WINDOW = 8     #0 to disable
 
-#MOST STABLE RIGHT NOW - KP = 0.0003, KD = 0.00055
-kP = -0.00030 #speed 0.12, kp - 0.55, kd -0.12 #TRY 0.00045
+# Bounds for the racecar speed and angle
+''''''
+# for mid speed (0.8)
+# MIN_SPEED = 0.8
+# MAX_SPEED = 0.8
+# MIN_ANGLE = -1
+# MAX_ANGLE = 1
+
+# kP = -0.00225
+# kI = 0
+# kD = -0.0075
+# kD = -0.0075
+
+
+# # for upped speed line following in research lab
+# MIN_SPEED = 1
+# MAX_SPEED = 1
+# MIN_ANGLE = -0.325
+# MAX_ANGLE = 0.325
+
+# kP = -0.002
+# kI = 0
+# kD = -0.03
+
+'''
+old 0.7 speed
+MIN_SPEED = 0.6
+MAX_SPEED = 0.7 
+MIN_ANGLE = -1
+MAX_ANGLE = 1
+
+kP = -0.002 
 kI = 0
-kD = -0.00055 #TRY 0.00014
+kD = -0.004 
+'''
+
+
+#Used for slow line following in research lab - USE THIS FOR DATA COLLECTION ALWAYS
+
+MIN_SPEED = 0.7
+MAX_SPEED = 0.7 
+MIN_ANGLE = -1
+MAX_ANGLE = 1
+
+kP = -0.002 
+kI = 0
+kD = -0.002
+
+
 GREEN_THRESH = 100
 
 
@@ -122,7 +187,7 @@ CROP_FLOOR = ((330, 0), (HEIGHT - 30, WIDTH))
 
 # Line color priorities
 WHITE_COLOR_PRIORITY = (RED, GREEN, BLUE)
-YELLOW_COLOR_PRIORITY = (GREEN, RED, ORANGE, BLUE)
+YELLOW_COLOR_PRIORITY = (BLUE, BLUE, BLUE, BLUE)
 BLACK_COLOR_PRIORITY = (GREEN, RED, BLUE)
 PURPLE_COLOR_PRIORITY = (BLUE, RED, GREEN)
 ORANGE_COLOR_PRIORITY = (BLUE, GREEN, RED)
@@ -130,7 +195,7 @@ PINK_COLOR_PRIORITY = (GREEN, BLUE, RED)
 BLUE_SEEN = False
 GREEN_SEEN = False
 green_timer = 0.0
-counter = 0;
+counter = 0
 END = False
 
 # Constants for storing information about the cones
@@ -322,7 +387,12 @@ def start():
     global cone_params
     global cone_name
     global cones
+    global countdown_time
+    countdown_time = 2+rand.random()*7
+    print(countdown_time)
 
+    f = open("data.txt", "a")
+    f.write("")  # Remove 'pass' and write your source code for the start() function here
     # Ignore all warnings
     warnings.filterwarnings("ignore")
 
@@ -395,6 +465,7 @@ def start():
         "   B button = print contour center and area\n"
         "   X button = switch to next target cone"
     )
+    
 
 # [FUNCTION] After start() is run, this function is run once every frame (ideally at
 # 60 frames per second or slower depending on processing speed) until the back button
@@ -426,8 +497,31 @@ def update():
     global CROP_FLOOR
     global GREEN_SEEN
     global END
+    global currentTime
+    global xAng
+    global yAng
+    global zAng
+    global xAccel
+    global yAccel
+    global zAccel
+    global tireFellTime
+    global start
+    global record
+    global blowout_detected
+    global countdown_time
     # Search for contours in the current color image
     update_contour()
+
+    countdown_time -= rc.get_delta_time()
+    if countdown_time > 0:
+        if blowout_detected:
+            dot_matrix_handler.update(rc, '|'+str(round(countdown_time,2)))
+        else:
+            dot_matrix_handler.update(rc, str(round(countdown_time,2)))
+    elif not blowout_detected:
+        dot_matrix_handler.update(rc, "|")
+    else:
+        dot_matrix_handler.update(rc, "BLOWOUT DETECTED")
 
     # print(GREEN_SEEN)
     # print(green_timer)
@@ -463,16 +557,16 @@ def update():
     if contour_center is not None:
         setpoint = WIDTH // 2
         error = setpoint - contour_center[1]
-        time = rc.get_delta_time()
+        mytime = rc.get_delta_time()
 
-        integral = integral + error * time if INTEGRAL_WINDOW == 0 else calcIntegral(times, last_error)
-        deriv = calcDeriv(error, time)
+        integral = integral + error * mytime if INTEGRAL_WINDOW == 0 else calcIntegral(times, last_error)
+        deriv = calcDeriv(error, mytime)
         # print(kP * error)
-        print("D: " + str(deriv))
+        # print("D: " + str(deriv))
 
         # print(error)
         angle = kP * error + kI * integral + kD * deriv
-        angle = rc_utils.clamp(angle, MIN_ANGLE, MAX_ANGLE) + 0.02
+        angle = rc_utils.clamp(angle, MIN_ANGLE, MAX_ANGLE)
 
         speed = MAX_SPEED#max(MAX_SPEED - abs(error), MIN_SPEED)
 
@@ -485,19 +579,19 @@ def update():
         # print(counter)
         # print(GREEN_SEEN)
         # print(error)
-        if not END and GREEN_SEEN and abs(error) >= GREEN_THRESH:
-            speed = 0.13
-            # if (green_timer < 1.5):
-            #     speed = -1
-            print("Yoinking green" + str(error))
-            # CROP_FLOOR = ((330, 0), (HEIGHT - 30, 200))
-            # if (abs(error) < GREEN_THRESH):
-            #     green_timer += 10
-            # green_timer += time
-            angle = -0.25
+        # if not END and GREEN_SEEN and abs(error) >= GREEN_THRESH:
+        #     speed = 0.13
+        #     # if (green_timer < 1.5):
+        #     #     speed = -1
+        #     print("Yoinking green" + str(error))
+        #     # CROP_FLOOR = ((330, 0), (HEIGHT - 30, 200))
+        #     # if (abs(error) < GREEN_THRESH):
+        #     #     green_timer += 10
+        #     # green_timer += time
+        #     angle = -0.25
         
         
-        times.append(times[-1] + time if len(times) > 0 else time)
+        times.append(times[-1] + mytime if len(times) > 0 else mytime)
 
         # Plot position
         # print(str(len(times)) + " " + str(len(last_readings)))
@@ -510,18 +604,69 @@ def update():
         END = True
     
     # Set the speed and angle of the RACECAR after calculations have been complete
-    rc.drive.set_speed_angle(speed, angle)
+    rc.drive.set_speed_angle(speed, rc_utils.clamp(angle + 0.02, -1, 1))
+
+    left_trigger = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
+    right_trigger = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
+    left_joystick = rc.controller.get_joystick(rc.controller.Joystick.LEFT)
+    right_joystick = rc.controller.get_joystick(rc.controller.Joystick.RIGHT)
 
     # Print the current speed and angle when the A button is held down
-    if rc.controller.is_down(rc.controller.Button.A):
-        print("Speed:", speed, "Angle:", angle)
+    ang_vel = rc.physics.get_angular_velocity()
+    accel = rc.physics.get_linear_acceleration()
+    
+    xAng.append(ang_vel[0])
+    yAng.append(ang_vel[1])
+    if abs(ang_vel[1]) > 0.25:
+        blowout_detected = True
+    zAng.append(ang_vel[2])
 
-    # Print the center and area of the largest contour when B is held down
-    if rc.controller.is_down(rc.controller.Button.B):
-        if contour_center is None:
-            print("No contour found")
-        else:
-            print("Center:", contour_center, "Area:", contour_area)
+    xAccel.append(accel[0])
+    yAccel.append(accel[1])
+    zAccel.append(accel[2])
+
+    currentTime+=rc.get_delta_time()
+    time.append(currentTime)
+    if rc.controller.was_pressed(rc.controller.Button.B):
+        tireFellTime=currentTime
+    if rc.controller.was_pressed(rc.controller.Button.A):
+        s=""
+        print("xAng",xAng)
+        print("yAng",yAng)
+        print("zAng",zAng)
+
+        s+="xAng"+str(xAng)+"\n" 
+        s+="yAng"+str(yAng)+"\n" 
+        s+="zAng"+str(zAng)+"\n" 
+
+        print("xAccel",xAccel)
+        print("yAccel",yAccel)
+        print("zAccel",zAccel)
+        print("tire fell at",tireFellTime)
+
+        s+="xAccel"+str(xAccel)+"\n" 
+        s+="yAccel"+str(yAccel)+"\n" 
+        s+="zAccel"+str(zAccel)+"\n" 
+
+        s+="time "+str(time)+""+"\n" 
+        s+="tire fell at: ("+str(tireFellTime)+")\n" 
+        s+="started at: {"+str(start)+"}"
+
+        f = open("data.txt", "w")
+        f.write(s)
+        f.close()
+        
+        file_path = 'output2.csv'
+        new_data = s
+# Append data to CSV file
+        with open(file_path, 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile,  delimiter=' ', quotechar='|')
+            writer.writerows(new_data)
+   
+    if (right_trigger >0 or left_trigger>0) and record:
+        print("jfhdsakjfh")
+        start=currentTime
+        record=False
 
 # [FUNCTION] update_slow() is similar to update() but is called once per second by
 # default. It is especially useful for printing debug messages, since printing a 
