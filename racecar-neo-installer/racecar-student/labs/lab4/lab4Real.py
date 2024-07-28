@@ -617,8 +617,11 @@ def update():
     
     xAng.append(ang_vel[0])
     yAng.append(ang_vel[1])
-    if abs(ang_vel[1]) > 0.25:
-        blowout_detected = True
+    if (len(yAng) > 10):
+        std = np.std(yAng)
+        mean = np.mean(yAng)
+        if (yAng[-1] > 4 * std + mean or yAng[-1] < -4 * std + mean) and abs(yAng[-1] > 0.1):
+            blowout_detected = True
     zAng.append(ang_vel[2])
 
     xAccel.append(accel[0])

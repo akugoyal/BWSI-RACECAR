@@ -7,7 +7,7 @@ import math
 import scipy
 
 #f = open("BlowOuts/frontLeft/frontLeftCrazy_trial1_06.23_5:01pm", "r")
-f = open("labs/lab4/data.txt", "r")
+f = open("labs/lab4/frontRight_trial4_06.25_3.29pm.txt", "r")
 
 d=f.read()
 y1=[]
@@ -37,6 +37,7 @@ start=float(d[d.find("{")+1:d.find("}")])
 #tireFell=start
 startIndex=arr[6].index(start)
 tireFellIndex=arr[6].index(tireFell)
+# tireFellIndex = 0
 for i in range(len(arr)):
     arr[i] = np.array(arr[i], dtype='float')
     sos = scipy.signal.butter(5, 5, 'lowpass', fs=60, output='sos')
